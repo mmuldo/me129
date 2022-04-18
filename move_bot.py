@@ -7,7 +7,7 @@ if __name__ == "__main__":
     robo = motor.Motor()
 
     try:
-        robo.set(.9,.9)
+        robo.setlinear(0.16)
         time.sleep(2)
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))

@@ -57,7 +57,10 @@ class Motor:
 		self.io.stop()
 
 	def setlinear(self, speed):
-		pass
+		pwm = 1.9457*speed + 0.1811
+		self.set(pwm,pwm)
+		
+		
 	def set(self, leftdutycycle, rightdutycycle):
 		left = leftdutycycle
 		right = rightdutycycle

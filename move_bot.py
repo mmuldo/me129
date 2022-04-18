@@ -12,8 +12,13 @@ if __name__ == "__main__":
 #         time.sleep(2)
         # Testing spinning
         # robo.set(0.6, -0.6)
-        robo.setspin(180)
         #time.sleep(1)
+        robo.setlinear(0.5)
+        time.sleep(1)
+        robo.setspin(180)
+        robo.setlinear(0.5)
+        time.sleep(1)
+        robo.setspin(180)
         
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))

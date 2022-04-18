@@ -2,13 +2,17 @@
 # Imports
 import pigpio
 import sys
-import math
-import time
 
 MTR1_LEGA = 7
 MTR1_LEGB = 8
 MTR2_LEGA = 5
 MTR2_LEGB = 6
+
+MOTORS = [
+    {'A': MTR1_LEGA, 'B': MTR1_LEGB}, 
+    {'A': MTR2_LEGA, 'B': MTR2_LEGB}
+]
+
 class Motor:
     def __init__(self):
     
@@ -58,76 +62,26 @@ class Motor:
 
         self.io.stop()
 
+    def duty_to_pwm(motor, dutycycle):
+        magnitude = abs(round(dutycycle*255))
+        if magnitude > 255:
+            magnitude = 255
+
+        direction = 'A' if dutycycle < 0 else 'B'
+        other_direction = 'A' if direction == 'B' else 'B'
+        return ((MOTORS[motor-1][direction], magnitude), 
+                (MOTORS[motor-1][other_direction], 0))
+
+    def set(self, leftdutycycle, rightdutycycle):
+        for motor, duty in enumerate([leftdutycycle, rightdutycycle]):
+            pwm = duty_to_pwm(motor+1, duty)
+
+            self.io.set_PWM_dutycycle(*pwm[0])
+            self.io.set_PWM_dutycycle(*pwm[1])
+
     def setlinear(self, speed):
         pwm = 1.9457*speed + 0.1811
         self.set(pwm,pwm)
-
-    def setspin(self, angle):
-        direction = None
-
-    #check which direction
-        if angle > 0: 
-            direction = "cw"
-        else:
-            direction = "ccw"
-
-        #move bot
-        left_sign = -1 if direction == 'ccw' else 1
-        right_sign = -1 if direction == 'cw' else 1
-        
-        omega = .58
-        t = angle/90
-        self.set(left_sign*omega, right_sign*omega)
-        time.sleep(t)
-
-
-    def set(self, leftdutycycle, rightdutycycle):
-        left = leftdutycycle
-        right = rightdutycycle
-
-        dir_left = None
-        dir_right = None
-
-        #make sure magnitude <= 1
-        if abs(left) > 1:
-            left /= abs(left)
-
-        if abs(right) > 1:
-            right /= abs(right)
-
-        #find which direction
-        if right < 0:
-            dir_right = 'A'
-        else:
-            dir_right = 'B'
-
-        if left < 0:
-            dir_left = 'A'
-        else:
-            dir_left = 'B'
-
-        #adjust to PWM values
-        right = abs(round(right*255))
-        left = abs(round(left*255))
-        
-        #set PWM values
-
-        if dir_left == 'A':
-            self.io.set_PWM_dutycycle(MTR1_LEGA, left)
-            self.io.set_PWM_dutycycle(MTR1_LEGB, 0)
-
-        elif dir_left == 'B':
-            self.io.set_PWM_dutycycle(MTR1_LEGA, 0)
-            self.io.set_PWM_dutycycle(MTR1_LEGB, left)
-
-        if dir_right == 'A':
-            self.io.set_PWM_dutycycle(MTR2_LEGA, right)
-            self.io.set_PWM_dutycycle(MTR2_LEGB, 0)
-
-        elif dir_right == 'B':
-            self.io.set_PWM_dutycycle(MTR2_LEGA, 0)
-            self.io.set_PWM_dutycycle(MTR2_LEGB, right)
-            
 
 
     # ~ def square(self):

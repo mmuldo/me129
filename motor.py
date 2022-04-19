@@ -2,147 +2,158 @@
 # Imports
 import pigpio
 import sys
-import math
 import time
+
+from typing import Tuple
 
 MTR1_LEGA = 7
 MTR1_LEGB = 8
 MTR2_LEGA = 5
 MTR2_LEGB = 6
+
+# motor1: left wheel, motor2: right wheel
+# A: negative terminal, B: positive terminal
+MOTORS = [
+    {'A': MTR1_LEGA, 'B': MTR1_LEGB},
+    {'A': MTR2_LEGA, 'B': MTR2_LEGB}
+]
+
+MOTOR_LEGS = [MTR1_LEGA, MTR1_LEGB, MTR2_LEGA, MTR2_LEGB]
+
+
+def duty_to_pwm(motor_number: int, dutycycle: float) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    '''
+    converts dutycycle to pwm
+
+    Parameters
+    ----------
+    motor_number : int
+        1 -> for left motor, 2 -> for right motor; errors if anything else
+    dutycycle : float
+        dutycycle, between -1.0 and 1.0
+
+    Returns
+    -------
+    Tuple[Tuple[int, int], Tuple[int, int]]
+        two tuples: the first is the (motor_leg, pwm) for the leg of the motor being set and the second
+        is (other_motor_leg, 0)
+    '''
+    magnitude = abs(round(dutycycle*255))
+    if magnitude > 255:
+        # max pwm is 255
+        magnitude = 255
+
+    # negative dutycycle -> leg A, positive -> leg B
+    direction = 'A' if dutycycle < 0 else 'B'
+    other_direction = 'A' if direction == 'B' else 'B'
+
+    return ((MOTORS[motor_number-1][direction], magnitude),
+            (MOTORS[motor_number-1][other_direction], 0))
+
 class Motor:
+    '''
+    abstract representation of robot motor, comprised of left and right motors
+    each with a positive and negative terminals (i.e. each motor can spin cw and ccw)
+
+    Attributes
+    ----------
+    io
+        pigpio instance
+
+    Methods
+    -------
+    shutdown()
+        stops robot
+    set(leftdutycycle, rightdutycycle)
+        sets pwm of left and right motors
+    setlinear(speed)
+        sets linear speed (m/s) of robot
+    setspin(w)
+        sets angular speed (degrees/s) of robot
+    setspin_direct(theta)
+        spins robot a fixed amount of degrees
+    '''
     def __init__(self):
-    
+
         ############################################################
         # Prepare the GPIO connetion (to command the motors).
         print("Setting up the GPIO...")
-
 
         # Initialize the connection to the pigpio daemon (GPIO interface).
         self.io = pigpio.pi()
         if not self.io.connected:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
-        # Set up the four pins as output (commanding the motors).
-        self.io.set_mode(MTR1_LEGA, pigpio.OUTPUT)
-        self.io.set_mode(MTR1_LEGB, pigpio.OUTPUT)
-        self.io.set_mode(MTR2_LEGA, pigpio.OUTPUT)
-        self.io.set_mode(MTR2_LEGB, pigpio.OUTPUT)
 
-        # Prepare the PWM.  The range gives the maximum value for 100%
-        # duty cycle, using integer commands (1 up to max).
-        self.io.set_PWM_range(MTR1_LEGA, 255)
-        self.io.set_PWM_range(MTR1_LEGB, 255)
-        self.io.set_PWM_range(MTR2_LEGA, 255)
-        self.io.set_PWM_range(MTR2_LEGB, 255)
+        for motor_leg in MOTOR_LEGS:
+            # Set up the four pins as output (commanding the motors).
+            self.io.set_mode(motor_leg, pigpio.OUTPUT)
 
-        # Set the PWM frequency to 1000Hz.  You could try 500Hz or 2000Hz
-        # to see whether there is a difference?
-        self.io.set_PWM_frequency(MTR1_LEGA, 1000)
-        self.io.set_PWM_frequency(MTR1_LEGB, 1000)
-        self.io.set_PWM_frequency(MTR2_LEGA, 1000)
-        self.io.set_PWM_frequency(MTR2_LEGB, 1000)
-        # Clear all pins, just in case.
-        self.io.set_PWM_dutycycle(MTR1_LEGA, 0)
-        self.io.set_PWM_dutycycle(MTR1_LEGB, 0)
-        self.io.set_PWM_dutycycle(MTR2_LEGA, 0)
-        self.io.set_PWM_dutycycle(MTR2_LEGB, 0)
+            # Prepare the PWM.  The range gives the maximum value for 100%
+            # duty cycle, using integer commands (1 up to max).
+            self.io.set_PWM_range(motor_leg, 255)
+
+            # Set the PWM frequency to 1000Hz.  You could try 500Hz or 2000Hz
+            # to see whether there is a difference?
+            self.io.set_PWM_frequency(motor_leg, 1000)
+
+            # Clear all pins, just in case.
+            self.io.set_PWM_dutycycle(motor_leg, 0)
         print("GPIO ready...")
 
     def shutdown(self):
+        '''stops robot'''
         print("Turning off...")
 
-        self.io.set_PWM_dutycycle(MTR1_LEGB, 0)
-        self.io.set_PWM_dutycycle(MTR2_LEGB, 0)
-        self.io.set_PWM_dutycycle(MTR2_LEGA, 0)
-        self.io.set_PWM_dutycycle(MTR1_LEGA, 0)
+        for motor_leg in MOTOR_LEGS:
+            self.io.set_PWM_dutycycle(motor_leg, 0)
 
         self.io.stop()
 
+
+    def set(self, leftdutycycle: float, rightdutycycle: float):
+        '''
+        sets the PWM for both motors
+
+        Parameters
+        ----------
+        leftdutycycle
+            dutycycle for left motor, between -1.0 and 1.0
+        rightdutycycle
+            dutycycle for left motor, between -1.0 and 1.0
+        '''
+        for i, dutycycle in enumerate([leftdutycycle, rightdutycycle]):
+            motor_number = i + 1
+            motor_pwm = duty_to_pwm(motor_number, dutycycle)
+
+            self.io.set_PWM_dutycycle(*motor_pwm[0])
+            self.io.set_PWM_dutycycle(*motor_pwm[1])
+
     def setlinear(self, speed):
-        pwm = 1.9457*speed + 0.1811
+        '''
+        sets linear velocity of robot in m/s
+        '''
+        #pwm = 1.9457*speed + 0.1811
+        pwm = 1.57*speed + 0.324
         self.set(pwm,pwm)
 
-    def setspin(self, angle):
-        direction = None
+    def setspin(self, w):
+        '''
+        sets angular velocity of robot in degrees/s
+        positive w -> cw spin
+        negative w -> ccw spin
+        '''
+        #pwm = 1.9457*speed + 0.1811
+        sign = -1 if w < 0 else 1
+        pwm = sign*(2.42*abs(w) + 0.447)
+        self.set(pwm,-pwm)
 
-    #check which direction
-        if angle > 0: 
-            direction = "cw"
-        else:
-            direction = "ccw"
-
-        #move bot
-        left_sign = -1 if direction == 'ccw' else 1
-        right_sign = -1 if direction == 'cw' else 1
-        
+    def setspin_direct(self, theta):
+        '''
+        rotates robot by theta degrees
+        '''
+        sign = -1 if theta < 0 else 1
         omega = .58
-        t = angle/90
-        self.set(left_sign*omega, right_sign*omega)
+        t = abs(theta/90)
+        self.set(sign*omega, -sign*omega)
         time.sleep(t)
-
-
-    def set(self, leftdutycycle, rightdutycycle):
-        left = leftdutycycle
-        right = rightdutycycle
-
-        dir_left = None
-        dir_right = None
-
-        #make sure magnitude <= 1
-        if abs(left) > 1:
-            left /= abs(left)
-
-        if abs(right) > 1:
-            right /= abs(right)
-
-        #find which direction
-        if right < 0:
-            dir_right = 'A'
-        else:
-            dir_right = 'B'
-
-        if left < 0:
-            dir_left = 'A'
-        else:
-            dir_left = 'B'
-
-        #adjust to PWM values
-        right = abs(round(right*255))
-        left = abs(round(left*255))
-        
-        #set PWM values
-
-        if dir_left == 'A':
-            self.io.set_PWM_dutycycle(MTR1_LEGA, left)
-            self.io.set_PWM_dutycycle(MTR1_LEGB, 0)
-
-        elif dir_left == 'B':
-            self.io.set_PWM_dutycycle(MTR1_LEGA, 0)
-            self.io.set_PWM_dutycycle(MTR1_LEGB, left)
-
-        if dir_right == 'A':
-            self.io.set_PWM_dutycycle(MTR2_LEGA, right)
-            self.io.set_PWM_dutycycle(MTR2_LEGB, 0)
-
-        elif dir_right == 'B':
-            self.io.set_PWM_dutycycle(MTR2_LEGA, 0)
-            self.io.set_PWM_dutycycle(MTR2_LEGB, right)
-            
-
-
-    # ~ def square(self):
-        # ~ # Turn in a box
-        # ~ for i in range(4):
-            # ~ io.set_PWM_dutycycle(MTR1_LEGA, 0)
-            # ~ io.set_PWM_dutycycle(MTR1_LEGB, 220)
-
-            # ~ io.set_PWM_dutycycle(MTR2_LEGA, 0)
-            # ~ io.set_PWM_dutycycle(MTR2_LEGB, 200)
-            # ~ time.sleep(3)
-            
-            # ~ io.set_PWM_dutycycle(MTR1_LEGA, 0)
-            # ~ io.set_PWM_dutycycle(MTR1_LEGB, 230)
-
-            # ~ io.set_PWM_dutycycle(MTR2_LEGA, 150)
-            # ~ io.set_PWM_dutycycle(MTR2_LEGB, 0)
-            # ~ time.sleep(.7)

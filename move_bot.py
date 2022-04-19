@@ -28,7 +28,7 @@ if __name__ == "__main__":
         #time.sleep(8)
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
-        
+
     #shut down robot
-    robo.shutdown()
+    robot.shutdown()
 

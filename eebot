@@ -107,8 +107,12 @@ command_mapping = {
     ),
 }
 
-command_mapping[command].run()
+try:
+    command_mapping[command].run()
 
-# default time to run to 1 second
-time.sleep(t if t else 0)
+    # default time to run to 0 second
+    time.sleep(t if t else 0)
+except BaseException as ex:
+    print(f"{type(ex).__name__}: {ex}")
+
 robot.shutdown()

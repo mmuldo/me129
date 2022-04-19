@@ -3,6 +3,7 @@
 import pigpio
 import sys
 import time
+import math
 
 from typing import Tuple
 
@@ -143,7 +144,6 @@ class Motor:
         positive w -> cw spin
         negative w -> ccw spin
         '''
-        #pwm = 1.9457*speed + 0.1811
         sign = -1 if w < 0 else 1
         pwm = sign*(2.42*abs(w) + 0.447)
         self.set(pwm,-pwm)
@@ -157,3 +157,19 @@ class Motor:
         t = abs(theta/90)
         self.set(sign*omega, -sign*omega)
         time.sleep(t)
+
+    def setvel(self, linear, spin):
+        '''
+        sets the linear and angular velocity of robot.
+        useful for driving in circles.
+        '''
+        # d is the wheel separation
+        d = 0.134
+        w = spin * math.pi /180
+
+        vl = 1/2*(2*linear + d*w)
+        vr = 1/2*(2*linear - d*w)
+        vl_pwm = 1.57*vl + 0.324
+        vr_pwm = 1.57*vr + 0.324
+
+        self.set(vl_pwm, vr_pwm)

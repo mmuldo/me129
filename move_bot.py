@@ -2,11 +2,13 @@
 import motor
 import time
 
+robot = motor.Motor()
+
 def drive_shape(turns):
     for i in range(turns):
-        robo.setlinear(0.5)
+        robot.setlinear(0.5)
         time.sleep(1)
-        robo.setspin(360/turns)
+        robot.setspin_direct(360/turns)
 
 def straight_and_back():
     drive_shape(2)
@@ -17,12 +19,13 @@ def triangle():
 def square():
     drive_shape(4)
 
-if __name__ == "__main__":
-    #initialize the robot
-    robo = motor.Motor()
 
+if __name__ == "__main__":
     try:
-        triangle()
+        robot.setlinear(0.4)
+        time.sleep(0.5)
+        #robo.setvel(0.5, 3.14/2)
+        #time.sleep(8)
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
         

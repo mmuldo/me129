@@ -10,9 +10,9 @@ MOTOR_PINS = [(7, 8), (5, 6)]
 
 # colors correspond to the color of the jumper cable connected to each LED
 LED_PINS = {
-    18: 'orange',
-    15: 'brown',
-    14: 'white',
+    18: 'right',
+    15: 'middle',
+    14: 'left',
 }
 
 def duty_to_pwm(
@@ -77,8 +77,7 @@ class EEBot:
 
     def __init__(
         self,
-        motors: List[int],
-        LED_detectors: List[int],
+        
         L: float = 0.103,
         d: float = 0.131
     ):
@@ -91,8 +90,9 @@ class EEBot:
         LED_detectors : List[int]
             GPIO pins that the LED/phototransistor detectors are connected to
         '''
-        self.motors = motors
-        self.LED_detectors = LED_detectors
+        
+        self.motors = [pin for motor in MOTOR_PINS for pin in motor]
+        self.LED_detectors = LED_PINS.keys()
         self.L = L
         self.d = d
 
@@ -101,7 +101,7 @@ class EEBot:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
 
-        for pin in motors:
+        for pin in self.motors:
             # Set up the four pins as output (commanding the motors).
             self.io.set_mode(pin, pigpio.OUTPUT)
 
@@ -116,7 +116,7 @@ class EEBot:
             # Clear all pins, just in case.
             self.io.set_PWM_dutycycle(pin, 0)
 
-        for pin in LED_detectors:
+        for pin in self.LED_detectors:
             # setup four LED pins as input
             self.io.set_mode(pin, pigpio.INPUT)
 
@@ -134,6 +134,7 @@ class EEBot:
         '''prints status of each LED detector'''
         for pin in self.LED_detectors:
             print(LED_PINS[pin], self.io.read(pin))
+        print('----')
 
     def set_pwm(self, leftdutycycle: float, rightdutycycle: float):
         '''

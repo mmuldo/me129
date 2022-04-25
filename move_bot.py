@@ -1,34 +1,37 @@
 #!/usr/bin/env python3
 import motor
 import time
+import robot
 
-robot = motor.Motor()
+#old_motor = motor.Motor()
+control = robot.EEBot()
 
-def drive_shape(turns):
-    for i in range(turns):
-        robot.setlinear(0.5)
-        time.sleep(1)
-        robot.setspin_direct(360/turns)
-
-def straight_and_back():
-    drive_shape(2)
-
-def triangle():
-    drive_shape(3)
-
-def square():
-    drive_shape(4)
+# def drive_shape(turns):
+#     for i in range(turns):
+#         old_motor.setlinear(0.5)
+#         time.sleep(1)
+#         old_motor.setspin_direct(360/turns)
+# 
+# def straight_and_back():
+#     drive_shape(2)
+# 
+# def triangle():
+#     drive_shape(3)
+# 
+# def square():
+#     drive_shape(4)
 
 
 if __name__ == "__main__":
     try:
-        robot.setlinear(0.4)
-        time.sleep(0.5)
-        #robo.setvel(0.5, 3.14/2)
-        #time.sleep(8)
+        while(1):
+            control.detectors_status()
+            time.sleep(1)
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 
-    #shut down robot
-    robot.shutdown()
+    #shutdown robot
+    control.shutdown()
+    #shut down old_motor
+    #old_motor.shutdown()
 

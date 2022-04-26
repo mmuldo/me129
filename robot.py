@@ -2,6 +2,7 @@ import pigpio
 import sys
 import math
 import time
+from datetime import datetime
 
 from typing import List, Tuple
 
@@ -192,6 +193,7 @@ class EEBot:
         SEARCH = True
         hit_line = False
         counter = 0
+        spin_start_time = None
         while True:
             pins = self.LED_detectors
             lmr = [self.io.read(pin) for pin in pins]
@@ -212,8 +214,8 @@ class EEBot:
                 prev = 'left'
                 self.set(0.25, -90)
             #stop
-            elif lmr == [0, 0, 0] and not SPIN and hit_line:
-                self.set(0, 0)
+            #elif lmr == [0, 0, 0] and not SPIN and hit_line:
+            #    self.set(0, 0)
             #continue with previous turn
             elif lmr == [1, 1, 1]:
                 if prev == 'left':
@@ -221,10 +223,14 @@ class EEBot:
                 elif prev == 'right':
                     self.set(0.25, 90)
             #spin
-            elif lmr == [0, 0, 0] and SPIN and hit_line:
+            elif lmr == [0, 0, 0] and hit_line:
                 self.set(.25, 90)
+                if not spin_start_time:
+                    spin_start_time = datetime.now()
+                elif (datetime.now() - spin_start_time).seconds >= 3:
+                    hit_line = False
             #search
-            elif lmr == [0, 0, 0] and SPIN and not hit_line:
+            elif lmr == [0, 0, 0] and not hit_line:
                 self.set(.3, 30 - counter)
                 counter += .0005
 

@@ -25,8 +25,7 @@ control = robot.EEBot()
 if __name__ == "__main__":
     try:
         while(1):
-            control.detectors_status()
-            time.sleep(1)
+            control.follow_tape()
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 

@@ -12,16 +12,16 @@ from typing import Any, Optional, List, Callable
 # eebot object #
 ################
 bot = robot.EEBot(
-    # MOTOR_PINS is 2-element list where each element is a tuple of pins;
-    # if viewing the robot from the back, the first tuple
-    # corresponds to the left motor and the second, the right motor
-    # for each tuple, the first element is the negative pin and the second,
-    # the positive pin
-    [pin for motor in robot.MOTOR_PINS for pin in motor],
-
-    # LED_PINS is a pin-to-LED dictionary, where the values are the colors
-    # of the jumper cables connected to each LED
-    robot.LED_PINS.keys()
+#     # MOTOR_PINS is 2-element list where each element is a tuple of pins;
+#     # if viewing the robot from the back, the first tuple
+#     # corresponds to the left motor and the second, the right motor
+#     # for each tuple, the first element is the negative pin and the second,
+#     # the positive pin
+#     [pin for motor in robot.MOTOR_PINS for pin in motor],
+# 
+#     # LED_PINS is a pin-to-LED dictionary, where the values are the colors
+#     # of the jumper cables connected to each LED
+#     robot.LED_PINS.keys()
 )
 
 def extract_time_flag(args: List[str]) -> Optional[float]:
@@ -135,18 +135,21 @@ command_mapping = {
         [float(arg) for arg in args],
         'sets nominal velocity (m/s) and steering angle (degrees) of the robot'
     ),
+    'follow-tape': Command(
+        bot.follow_tape,
+        [],
+        'eebot will start looking for tape to follow and then follow it'
+    )
 }
-
-command_mapping[command].run()
 
 # default time to run to 0 second
 time.sleep(t if t else 0)
-#try:
-#    command_mapping[command].run()
-#
-#    # default time to run to 0 second
-#    time.sleep(t if t else 0)
-#except BaseException as ex:
-#    print(f"{type(ex).__name__}: {ex}")
+try:
+    command_mapping[command].run()
 
-bot.shutdown()
+    # default time to run to 0 second
+    time.sleep(t if t else 0)
+except BaseException as ex:
+    print(f"{type(ex).__name__}: {ex}")
+finally:
+    bot.shutdown()

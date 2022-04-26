@@ -57,3 +57,13 @@ $ eebot set VEL_NOM STEERING_ANGLE --time TIME
 ```bash
 $ eebot set 0.2 -30 --time 0.7
 ```
+
+### `follow-tape`
+
+eebot will start looking for tape to follow and the follow it
+
+#### Usage
+
+```bash
+$ eebot follow-tape
+```

@@ -183,11 +183,9 @@ class EEBot:
                 k*vel_left + fric,
                 k*vel_right + fric
             )
-    
+
     def follow_tape(self):
-        left = 0
-        middle = 0
-        right = 0
+        '''sends eebot to go find some black tape and follow it'''
         prev = None
         
         SPIN = True
@@ -195,15 +193,9 @@ class EEBot:
         hit_line = False
         counter = 0
         while True:
-            lmr = [self.io.read(pin) for pin in self.LED_detectors]
-            lr = [lmr[0] + lmr[2]]
-            
-            #reset counter when hit_line resets to False
-            left = self.io.read(self.LED_detectors[0])
-            middle = self.io.read(self.LED_detectors[1])
-            right = self.io.read(self.LED_detectors[2])
-            #print(left, right, middle)
-            #time.sleep(.4)
+            pins = self.LED_detectors
+            lmr = [self.io.read(pin) for pin in pins]
+            lr = [lmr[0], lmr[2]]
             
             #keep going straight
             if lmr == [0, 1, 0]:
@@ -232,43 +224,9 @@ class EEBot:
             elif lmr == [0, 0, 0] and SPIN and hit_line:
                 self.set(.25, 90)
             #search
-            elif lmr == [0, 0, 0] and SEARCH and not hit_line:
+            elif lmr == [0, 0, 0] and SPIN and not hit_line:
                 self.set(.3, 30 - counter)
                 counter += .0005
-
-            ##keep going straight
-            #if ((middle == 1) and (left == 0) and (right == 0)):
-            #    hit_line = True
-            #    self.set(0.25, 0)
-            ##turn right
-            #elif ((left == 0) and (right == 1)):
-            #    hit_line = True
-            #    prev = 'right'
-            #    self.set(0.25, 90)
-            ##turn left
-            #elif ((left == 1) and (right == 0)):
-            #    hit_line = True
-            #    prev = 'left'
-            #    self.set(0.25, -90)
-            ##stop
-            #elif ((middle == 0) and (left == 0) and (right == 0) and SPIN == False
-            #      and hit_line == True):
-            #    self.set(0, 0)
-            ##continue with previous turn
-            #elif (middle == 1) and (left == 1) and (right == 1):
-            #    if prev == 'left':
-            #        self.set(0.25, -90)
-            #    elif prev == 'right':
-            #        self.set(0.25, 90)
-            ##spin
-            #elif ((middle == 0) and (left == 0) and (right == 0) and SPIN == True
-            #      and hit_line == True):
-            #    self.set(.25, 90)
-            ##search
-            #elif ((middle == 0) and (left == 0) and (right == 0) and
-            #      SEARCH == True and hit_line == False):
-            #    self.set(.3, 30 - counter)
-            #    counter += .0005
 
 
 #add spinning

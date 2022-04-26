@@ -198,19 +198,21 @@ class EEBot:
             pins = self.LED_detectors
             lmr = [self.io.read(pin) for pin in pins]
             lr = [lmr[0], lmr[2]]
+
+            if lmr != [0, 0, 0]:
+                hit_line = True
+                spin_start_time = None
+                counter = 0
             
             #keep going straight
             if lmr == [0, 1, 0]:
-                hit_line = True
                 self.set(0.25, 0)
             #turn right
             elif lr == [0, 1]:
-                hit_line = True
                 prev = 'right'
                 self.set(0.25, 90)
             #turn left
             elif lr == [1, 0]:
-                hit_line = True
                 prev = 'left'
                 self.set(0.25, -90)
             #stop
@@ -227,13 +229,10 @@ class EEBot:
                 self.set(.25, 90)
                 if not spin_start_time:
                     spin_start_time = datetime.now()
-                elif (datetime.now() - spin_start_time).seconds >= 3:
+                elif (datetime.now() - spin_start_time).seconds >= 5:
                     hit_line = False
             #search
             elif lmr == [0, 0, 0] and not hit_line:
+                spin_start_time = None
                 self.set(.3, 30 - counter)
                 counter += .0005
-
-
-#add spinning
-                    #add searching

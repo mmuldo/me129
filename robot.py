@@ -1,6 +1,7 @@
 import pigpio
 import sys
 import math
+import time
 
 from typing import List, Tuple
 
@@ -92,7 +93,7 @@ class EEBot:
         '''
         
         self.motors = [pin for motor in MOTOR_PINS for pin in motor]
-        self.LED_detectors = LED_PINS.keys()
+        self.LED_detectors = list(LED_PINS.keys())
         self.L = L
         self.d = d
 
@@ -175,7 +176,68 @@ class EEBot:
         k = 1.5
         fric = .34 if vel_nominal > 0 else -.34
 
-        self.set_pwm(
-            k*vel_left + fric,
-            k*vel_right + fric
-        )
+        if vel_nominal == 0:
+            self.set_pwm(0,0)
+        else: 
+            self.set_pwm(
+                k*vel_left + fric,
+                k*vel_right + fric
+            )
+    
+    def line_follow(self):
+        left = 0
+        middle = 0
+        right = 0
+        prev = None
+        
+        SPIN = True
+        SEARCH = True
+        hit_line = False
+        counter = 0
+        while True:
+            lmr = [self.io.read(pin) for pin in self.LED_detectors]
+            
+            #reset counter when hit_line resets to False
+            left = self.io.read(self.LED_detectors[0])
+            middle = self.io.read(self.LED_detectors[1])
+            right = self.io.read(self.LED_detectors[2])
+            #print(left, right, middle)
+            #time.sleep(.4)
+            
+            #keep going straight
+            if ((middle == 1) and (left == 0) and (right == 0)):
+                hit_line = True
+                self.set(0.25, 0)
+            #turn right
+            elif ((left == 0) and (right == 1)):
+                hit_line = True
+                prev = 'right'
+                self.set(0.25, 90)
+            #turn left
+            elif ((left == 1) and (right == 0)):
+                hit_line = True
+                prev = 'left'
+                self.set(0.25, -90)
+            #stop
+            elif ((middle == 0) and (left == 0) and (right == 0) and SPIN == False
+                  and hit_line == True):
+                self.set(0, 0)
+            #continue with previous turn
+            elif (middle == 1) and (left == 1) and (right == 1):
+                if prev == 'left':
+                    self.set(0.25, -90)
+                elif prev == 'right':
+                    self.set(0.25, 90)
+            #spin
+            elif ((middle == 0) and (left == 0) and (right == 0) and SPIN == True
+                  and hit_line == True):
+                self.set(.25, 90)
+            #search
+            elif ((middle == 0) and (left == 0) and (right == 0) and
+                  SEARCH == True and hit_line == False):
+                self.set(.3, 30 - counter)
+                counter += .0005
+
+
+#add spinning
+                    #add searching

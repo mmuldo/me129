@@ -188,20 +188,59 @@ class EEBot:
         turn = None
         #left turn
         if (value == 1 or value == 3):
-            for i in range(2000):
-                self.set(.3,90)
+            self.left_inplace()
         #180 turn
         elif (value == 2 or value == -2):
-            for i in range(3500):
-                self.set(.3,90)
+            self.backwards_inplace()
         #right turn
         elif (value == 3 or value == -1):
-            for i in range(2000):
-                self.set(.3,-90)
+            self.right_inplace()
         #else no turn
         else:
             return
     
+    def left_inplace(self):
+        for i in range(1700):
+            self.set_pwm(-.8,.8)
+            
+    def right_inplace(self):
+        for i in range(1700):
+            self.set_pwm(.8,-.8)
+    
+    def backwards_inplace(self):
+        for i in range(3000):
+            self.set_pwm(.8,-.8)
+    
+    def check_intersection(self):
+        pins = self.LED_detectors
+        #forward, left, backward, right
+        streets = [False, False, True, False]
+        #go forward a bit
+        for i in range(2000):
+            self.set_pwm(.7,.7)
+            
+        #check forward
+        lmr = [self.io.read(pin) for pin in pins]
+        if sum(lmr) > 0:
+            streets[0] = True
+            
+        #check left
+        self.left_inplace()
+        lmr = [self.io.read(pin) for pin in pins]
+        if sum(lmr) > 0:
+            streets[1] = True
+            
+        #check right
+        self.backwards_inplace()
+        lmr = [self.io.read(pin) for pin in pins]
+        if sum(lmr) > 0:
+            streets[3] = True
+            
+        #recenter
+        self.left_inplace()
+        
+        return streets
+        
     def known_map(self):
         #map = ['L', 'R', 'R', 'R', 'F']
         map = ['R', 'L', 'L', 'L', 'F']

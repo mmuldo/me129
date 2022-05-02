@@ -184,38 +184,7 @@ class EEBot:
                 k*vel_left + fric,
                 k*vel_right + fric
             )
-    def turn(self, value):
-        turn = None
-        #left turn
-        if (value == 1 or value == 3):
-            for i in range(2000):
-                self.set(.3,90)
-        #180 turn
-        elif (value == 2 or value == -2):
-            for i in range(3500):
-                self.set(.3,90)
-        #right turn
-        elif (value == 3 or value == -1):
-            for i in range(2000):
-                self.set(.3,-90)
-        #else no turn
-        else:
-            return
-    
-    def known_map(self):
-        #map = ['L', 'R', 'R', 'R', 'F']
-        map = ['R', 'L', 'L', 'L', 'F']
-        for dir in map:
-            self.follow_tape()
-            
-            if dir == 'L':
-                self.turn(1)
-            elif dir == 'R':
-                self.turn(-1)
-            elif dir == 'F':
-                self.turn(0)
-        
-        
+
     def follow_tape(self):
         '''sends eebot to go find some black tape and follow it'''
         prev = None
@@ -246,23 +215,22 @@ class EEBot:
             elif lr == [1, 0]:
                 prev = 'left'
                 self.set(0.25, -90)
-            
-            #we hit an intersection
+            #stop
+            #elif lmr == [0, 0, 0] and not SPIN and hit_line:
+            #    self.set(0, 0)
+            #continue with previous turn
             elif lmr == [1, 1, 1]:
-                self.set(0,0)
-                return 'INTERSECTION'
-#                 if prev == 'left':
-#                     self.set(0.25, -90)
-#                 elif prev == 'right':
-#                     self.set(0.25, 90)
-            #we have reached a dead end
+                if prev == 'left':
+                    self.set(0.25, -90)
+                elif prev == 'right':
+                    self.set(0.25, 90)
+            #spin
             elif lmr == [0, 0, 0] and hit_line:
-                self.set(0, 0)
-                return 'DEAD'
-#                 if not spin_start_time:
-#                     spin_start_time = datetime.now()
-#                 elif (datetime.now() - spin_start_time).seconds >= 5:
-#                     hit_line = False
+                self.set(.25, 90)
+                if not spin_start_time:
+                    spin_start_time = datetime.now()
+                elif (datetime.now() - spin_start_time).seconds >= 5:
+                    hit_line = False
             #search
             elif lmr == [0, 0, 0] and not hit_line:
                 spin_start_time = None

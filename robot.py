@@ -3,7 +3,7 @@ import sys
 import math
 import time
 from map import Map, Intersection
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from typing import List, Tuple
 
@@ -356,3 +356,13 @@ class EEBot:
         for dir in route:
             self.turn(dir)
             self.follow_tape()
+
+    def scan(self, heading):
+        self.turn(-heading % 4)
+
+        streets = []
+        for i in range(4):
+            LED_readings = [self.io.read(pin) for pin in self.LED_detectors]
+            streets.append(1 in LED_readings)
+
+        return streets

@@ -119,7 +119,6 @@ class Map:
 
 
 def build_map(start: Intersection):
-    pass
     
 
 map1 = Map({})

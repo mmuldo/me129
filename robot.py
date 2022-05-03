@@ -2,6 +2,7 @@ import pigpio
 import sys
 import math
 import time
+from map import Map, Intersection
 from datetime import datetime
 
 from typing import List, Tuple
@@ -16,6 +17,12 @@ LED_PINS = {
     15: 'middle',
     14: 'left',
 }
+
+def route_to_directions(route: List[Intersection], heading: int):
+
+    # TODO
+    adjusted_route = [Intersection(0,0)]
+
 
 def duty_to_pwm(
     motor_number: int,
@@ -310,7 +317,7 @@ class EEBot:
                 self.set(.3, 30 - counter)
                 counter += .0005
 
-    def follow_route(self, route):
+    def follow_directions(self, route):
         dir_to_turn = {
             'F': 0,
             'L': 1,

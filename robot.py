@@ -18,26 +18,44 @@ LED_PINS = {
     14: 'left',
 }
 
+# Cardinal directions
+N = 0
+W = 1
+S = 2
+E = 3
+
 # Directions
 F = 0   # forwards
-R = -1  # right
-B = 2   # backwards
 L = 1   # left
+B = 2   # backwards
+R = 3   # right
+
+# 90 degree turns
+DEGREE90_PWM = 0.685
+DEGREE90_WAIT = 0.89
 
 def route_to_directions(route: List[Intersection], heading: int):
     diff_to_dir = {
         (0, 1):     F,
-        (1, 0):     R,
-        (0, -1):    B,
         (-1, 0):    L,
+        (0, -1):    B,
+        (1, 0):     R,
     }
 
+    curr_heading = heading
     dirs = []
     for j in range(len(route)-1):
-        dirs.append(diff_to_dir[route[j+1]-route[j]])
+        direction = diff_to_dir[route[j+1]-route[j]]
+        dirs.append(
+            (
+                direction - curr_heading
+            ) % 4
+        )
+        print(curr_heading ,direction)
+        print(dirs)
+        curr_heading = direction
 
-    # adjust all directions by heading
-    return [(d + heading) % 4 for d in dirs]
+    return dirs
 
 
 
@@ -211,7 +229,7 @@ class EEBot:
     def turn(self, value):
         turn = None
         #left turn
-        if (value == 1 or value == 3):
+        if (value == 1 or value == -3):
             self.left_inplace()
         #180 turn
         elif (value == 2 or value == -2):
@@ -222,19 +240,19 @@ class EEBot:
         #else no turn
         else:
             return
-    
+
     def left_inplace(self):
-        for i in range(1700):
-            self.set_pwm(-.8,.8)
-            
+        self.set_pwm(-0.7, 0.7)
+        time.sleep(0.86)
+
     def right_inplace(self):
-        for i in range(1700):
-            self.set_pwm(.8,-.8)
-    
+        self.set_pwm(0.7, -0.7)
+        time.sleep(0.77)
+
     def backwards_inplace(self):
-        for i in range(3000):
-            self.set_pwm(.8,-.8)
-    
+        self.set_pwm(-0.7, 0.7)
+        time.sleep(2*0.86)
+
     def check_intersection(self):
         pins = self.LED_detectors
         #forward, left, backward, right
@@ -242,7 +260,7 @@ class EEBot:
         #go forward a bit
         for i in range(2000):
             self.set_pwm(.7,.7)
-            
+
         #check forward
         lmr = [self.io.read(pin) for pin in pins]
         if sum(lmr) > 0:
@@ -323,7 +341,7 @@ class EEBot:
             #we have reached a dead end
             elif lmr == [0, 0, 0] and hit_line:
                 self.set(0, 0)
-                return 'DEAD'
+                #return 'DEAD'
 #                 if not spin_start_time:
 #                     spin_start_time = datetime.now()
 #                 elif (datetime.now() - spin_start_time).seconds >= 5:

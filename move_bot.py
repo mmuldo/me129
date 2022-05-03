@@ -7,8 +7,16 @@ control = robot.EEBot()
 
 if __name__ == "__main__":
     try:
-        streets = control.check_intersection()
-        print(streets)
+        #streets = control.check_intersection()
+        #print(streets)
+        control.turn(2)
+#        time.sleep(2.5)
+ #       control.turn(1)
+  #      time.sleep(2.5)
+   #     control.turn(2)
+    #    time.sleep(2.5)
+     #   control.turn(-1)
+      #  time.sleep(2.5)
         #control.known_map()
         #control.follow_tape()
     except BaseException as ex:

@@ -288,6 +288,8 @@ class EEBot:
             
             #we hit an intersection
             elif lmr == [1, 1, 1]:
+                self.set(0.25, 0)
+                time.sleep(0.5)
                 self.set(0,0)
                 return 'INTERSECTION'
 #                 if prev == 'left':
@@ -316,5 +318,5 @@ class EEBot:
             'B': 2,
         }
         for dir in route:
-            self.follow_tape()
             self.turn(dir_to_turn[dir])
+            self.follow_tape()

@@ -18,10 +18,27 @@ LED_PINS = {
     14: 'left',
 }
 
-def route_to_directions(route: List[Intersection], heading: int):
+# Directions
+F = 0   # forwards
+R = -1  # right
+B = 2   # backwards
+L = 1   # left
 
-    # TODO
-    adjusted_route = [Intersection(0,0)]
+def route_to_directions(route: List[Intersection], heading: int):
+    diff_to_dir = {
+        (0, 1):     F,
+        (1, 0):     R,
+        (0, -1):    B,
+        (-1, 0):    L,
+    }
+
+    dirs = []
+    for j in range(len(route)-1):
+        dirs.append(diff_to_dir[route[j+1]-route[j]])
+
+    # adjust all directions by heading
+    return [(d + heading) % 4 for d in dirs]
+
 
 
 def duty_to_pwm(
@@ -318,12 +335,6 @@ class EEBot:
                 counter += .0005
 
     def follow_directions(self, route):
-        dir_to_turn = {
-            'F': 0,
-            'L': 1,
-            'R': -1,
-            'B': 2,
-        }
         for dir in route:
-            self.turn(dir_to_turn[dir])
+            self.turn(dir)
             self.follow_tape()

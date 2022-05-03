@@ -15,6 +15,9 @@ class Intersection:
     def update_street(self, street: int, state: Optional[bool] = None):
         self.streets[street % 4] = state
 
+    def __sub__(self, other):
+        return (self.long - other.long, self.lat - other.lat)
+
     def __str__(self):
         return str((self.long, self.lat))
 
@@ -22,8 +25,32 @@ class Intersection:
 class Map:
     def __init__(self, intersections):
         self.intersections = intersections
+        self.long_lats = [(inter.long, inter.lat) for inter in intersections]
 
-    def add_street(self, int1, int2):
+    def long_lat_to_intersection(
+        self, 
+        long_lat: Tuple[int, int]
+    ) -> Intersection:
+        if long_lat not in self.long_lats:
+            self.long_lats.append(long_lat)
+            return Intersection(*long_lat)
+        else:
+            return [
+                intersection 
+                for intersection in self.intersections 
+                if intersection.long == long_lat[0] 
+                and intersection.lat == long_lat[1]
+            ][0]
+
+    def add_street(
+        self, 
+        long_lat1: Tuple[int, int], 
+        long_lat2: Tuple[int, int]
+    ):
+
+        int1 = self.long_lat_to_intersection(long_lat1)
+        int2 = self.long_lat_to_intersection(long_lat2)
+
         # connect first intersection to second
         try:
             self.intersections[int1].append(int2)
@@ -36,10 +63,15 @@ class Map:
         except KeyError:
             self.intersections[int2] = [int1]
 
+
     # Function to find the shortest
     # path between two nodes of a graph
-    def shortest_route(self, src, dest):
+    def shortest_route(self, start, end):
         '''uses BFS since this is an unweighted graph'''
+
+        src = self.long_lat_to_intersection(start)
+        dest = self.long_lat_to_intersection(end)
+
         explored = []
         
         # Queue for traversing the
@@ -80,45 +112,26 @@ class Map:
         return []
 
     def __str__(self):
-        for intersection, neighbors in self.intersections.items():
-            print(f'{intersection}: {",".join([str(n) for n in neighbors])}')
-
-# Driver Code
-if __name__ == "__main__":
-    
-    A = Intersection(0,0)
-    B = Intersection(1,1)
-    C = Intersection(2,3)
-    D = Intersection(5,-1)
-    E = Intersection(6,4)
-    F = Intersection(1,2)
-    G = Intersection(10,9)
-
-    # Graph using dictionaries
-    graph = Map({A: [B, E, C],
-            B: [A, D, E],
-            C: [A, F, G],
-            D: [B, E],
-            E: [A, B, D],
-            F: [C],
-            G: [C]})
-    
-    # Function Call
-    print(*graph.shortest_route(A, D))
+        return '\n'.join([
+            f'{intersection}: {",".join([str(n) for n in neighbors])}' 
+            for intersection, neighbors in self.intersections.items()
+        ])
 
 
 def build_map(start: Intersection):
     pass
     
 
-int1 = Intersection(1, 2)
-int2 = Intersection(3, 4)
-int3 = Intersection(0, 6)
-int4 = Intersection(7, 6)
-
-m = Map({})
-m.add_street(int1, int2)
-m.add_street(int1, int4)
-m.add_street(int2, int3)
-
-m.add_street
+map1 = Map({})
+map1.add_street((0,0), (0,1))
+map1.add_street((0,0), (-1,0))
+map1.add_street((0,1), (0,2))
+map1.add_street((0,1), (-1,1))
+map1.add_street((-1,0), (-2,0))
+map1.add_street((0,2), (-1,2))
+map1.add_street((-1,1), (-1,2))
+map1.add_street((-1,1), (-2,1))
+map1.add_street((-2,0), (-2,1))
+map1.add_street((-2,0), (-3,0))
+map1.add_street((-2,1), (-3,1))
+map1.add_street((-3,0), (-3,1))

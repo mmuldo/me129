@@ -307,3 +307,14 @@ class EEBot:
                 spin_start_time = None
                 self.set(.3, 30 - counter)
                 counter += .0005
+
+    def follow_route(self, route):
+        dir_to_turn = {
+            'F': 0,
+            'L': 1,
+            'R': -1,
+            'B': 2,
+        }
+        for dir in route:
+            self.follow_tape()
+            self.turn(dir_to_turn[dir])

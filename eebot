@@ -139,6 +139,10 @@ command_mapping = {
         bot.follow_tape,
         [],
         'eebot will start looking for tape to follow and then follow it'
+    ),
+    'follow-route': Command(
+        bot.follow_route,
+        [args]
     )
 }
 

@@ -125,24 +125,28 @@ command_mapping = {
         [],
         'prints status of each LED detector; the color indicates the jumpercable color'
     ),
-    #'set-pwm': Command(
-    #    bot.set_pwm,
-    #    [float(arg) for arg in args],
-    #    'sets pwm of left and right wheels respectively'
-    #),
-    #'set': Command(
-    #    bot.set,
-    #    [float(arg) for arg in args],
-    #    'sets nominal velocity (m/s) and steering angle (degrees) of the robot'
-    #),
+    'set-pwm': Command(
+        bot.set_pwm,
+        [float(arg) for arg in args],
+        'sets pwm of left and right wheels respectively'
+    ),
+    'set': Command(
+        bot.set,
+        [float(arg) for arg in args],
+        'sets nominal velocity (m/s) and steering angle (degrees) of the robot'
+    ),
     #'follow-tape': Command(
     #    bot.follow_tape,
     #    [],
     #    'eebot will start looking for tape to follow and then follow it'
     #),
-    'follow-route': Command(
-        bot.follow_route,
+    'follow-directions': Command(
+        bot.follow_directions,
         [args]
+    ),
+    'scan': Command(
+        bot.scan,
+        [int(arg) for arg in args]
     )
 }
 

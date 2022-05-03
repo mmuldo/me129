@@ -119,7 +119,7 @@ class Map:
 
 
 def build_map(start: Intersection):
-    
+    pass
 
 map1 = Map({})
 map1.add_street((0,0), (0,1))

@@ -243,7 +243,7 @@ class EEBot:
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)
-        time.sleep(0.86)
+        time.sleep(0.80)
 
     def right_inplace(self):
         self.set_pwm(0.7, -0.7)
@@ -362,7 +362,10 @@ class EEBot:
 
         streets = []
         for i in range(4):
+            print('hit')
             LED_readings = [self.io.read(pin) for pin in self.LED_detectors]
             streets.append(1 in LED_readings)
+            self.left_inplace()
 
+        print(streets)
         return streets

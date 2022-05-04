@@ -327,7 +327,7 @@ class EEBot:
         self.set_pwm(-0.7, 0.7)
         time.sleep(2*0.86)
 
-    def check_intersection(self, heading: int) -> List[bool]:
+    def check_intersection(self, heading: int) -> Tuple[List[bool], int]:
         '''
         check for adjacent streets at an intersection
 
@@ -338,10 +338,13 @@ class EEBot:
 
         Returns
         -------
-        List[bool]
-            length 4 list where each element indicates if there is a street
-            at [Forwards, Left, Backwards, Right]
+        Tuple[List[bool], int]
+            first item is a length 4 list where each element indicates 
+            if there is a street at [North, West, South, East].
+            second item is the new heading after scanning
 
+        Returns
+        -------
         TODO
         ----
         assess if we should use this or scan()
@@ -373,7 +376,10 @@ class EEBot:
         #recenter
         self.left_inplace()
         
-        return streets
+        # realign streets based on heading (so that they're [N, W, S, E]
+        streets = streets[-heading:] + streets[:-heading]
+        print(streets)
+        return (streets, heading)
         
 
     def follow_tape(self):
@@ -500,6 +506,8 @@ class EEBot:
             self.find_line(True, 4)
 
         streets = [True, left_exists, back_exists, right_exists]
+
+        # realign streets based on heading (so that they're [N, W, S, E]
         streets = streets[-heading:] + streets[:-heading]
         print(streets)
         return (streets, heading)

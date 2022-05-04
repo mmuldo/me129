@@ -34,29 +34,6 @@ R = 3   # right
 DEGREE90_PWM = 0.685
 DEGREE90_WAIT = 0.89
 
-def route_to_directions(route: List[Intersection], heading: int):
-    diff_to_dir = {
-        (0, 1):     F,
-        (-1, 0):    L,
-        (0, -1):    B,
-        (1, 0):     R,
-    }
-
-    curr_heading = heading
-    dirs = []
-    for j in range(len(route)-1):
-        direction = diff_to_dir[route[j+1]-route[j]]
-        dirs.append(
-            (
-                direction - curr_heading
-            ) % 4
-        )
-        print(curr_heading ,direction)
-        print(dirs)
-        curr_heading = direction
-
-    return dirs
-
 
 
 def duty_to_pwm(
@@ -387,13 +364,11 @@ class EEBot:
             self.turn(dir)
             self.follow_tape()
 
-        
-
     def scan(self, heading):
         # face backwards, since we know this will for sure have a road
         self.snap90(False)
         self.snap90(False)
-        new_heading = (heading+2)%4
+        heading = (heading+2)%4
 
         # check if left street exists
         left_exists = self.snap90(False)
@@ -427,6 +402,6 @@ class EEBot:
             self.find_line(True, 4)
 
         streets = [True, left_exists, back_exists, right_exists]
-        streets = streets[-new_heading:] + streets[:-new_heading]
+        streets = streets[-heading:] + streets[:-heading]
         print(streets)
         return streets

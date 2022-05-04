@@ -1,5 +1,51 @@
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
+import robot
+
+# Cardinal directions
+N = 0
+W = 1
+S = 2
+E = 3
+
+dir_to_diff = [
+    (0, 1),
+    (-1, 0),
+    (0, -1),
+    (1, 0),
+]
+
+# Directions
+F = 0   # forwards
+L = 1   # left
+B = 2   # backwards
+R = 3   # right
+
+diff_to_dir = {
+    (0, 1):     F,
+    (-1, 0):    L,
+    (0, -1):    B,
+    (1, 0):     R,
+}
+
+def route_to_directions(route: List[Intersection], heading: int):
+
+    curr_heading = heading
+    dirs = []
+    for j in range(len(route)-1):
+        direction = diff_to_dir[route[j+1]-route[j]]
+        dirs.append(
+            (
+                direction - curr_heading
+            ) % 4
+        )
+        print(curr_heading, direction)
+        print(dirs)
+        curr_heading = direction
+
+    heading = curr_heading
+    return dirs
+
 
 class Intersection:
     def __init__(self, long: int, lat: int):
@@ -10,10 +56,10 @@ class Intersection:
         # True --> there's a street in that direction
         # False --> there's no street in that direction
         # Recall that the directions are [north, west, south, east]
-        self.streets = [None] * 4
+        #self.streets = [None] * 4
 
-    def update_street(self, street: int, state: Optional[bool] = None):
-        self.streets[street % 4] = state
+    #def update_street(self, street: int, state: Optional[bool] = None):
+    #    self.streets[street % 4] = state
 
     def __sub__(self, other):
         return (self.long - other.long, self.lat - other.lat)
@@ -118,8 +164,43 @@ class Map:
         ])
 
 
-def build_map(start: Intersection):
-    pass
+def build_map(bot: robot.EEBot, start: Tuple[int, int], heading: int):
+    m = Map({})
+    s = Intersection(*start)
+    curr_long_lat = start
+
+    # Mark all the vertices as not visited
+    visited = []
+ 
+    # Create a queue for BFS
+    queue = []
+ 
+    # Mark the source node as
+    # visited and enqueue it
+    queue.append(s)
+    visited.append(s)
+ 
+    while queue:
+ 
+        # Dequeue a vertex from
+        # queue and print it
+        s = queue.pop(0)
+        bot.follow_directions(
+            route_to_directions(
+                m.shortest_route(curr_long_lat, (s.long, s.lat)),
+                heading
+            )
+        )
+        curr_long_lat = (s.long, s.lat)
+ 
+        streets = bot.scan(heading)
+
+        for dir in streets:
+            i = m.long_lat_to_intersection(dir_to_diff[dir] + curr_long_lat)
+            if i not in visited:
+                queue.append(i)
+                visited.append(i)
+        
 
 map1 = Map({})
 map1.add_street((0,0), (0,1))

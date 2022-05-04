@@ -243,7 +243,7 @@ class EEBot:
 
     def find_line(self, spin_right: bool, wait_time: float) -> bool:
         sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.7, sign*0.7)
+        self.set_pwm(-sign*0.72, sign*0.68)
 
         start_time = datetime.now()
         rml = [0, 0, 0]
@@ -265,11 +265,11 @@ class EEBot:
 
     def snap90(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.7)
+        return self.find_line(spin_right, 0.67)
 
     def snap180(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 1.4)
+        return self.find_line(spin_right, 1.30)
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)

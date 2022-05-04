@@ -265,11 +265,11 @@ class EEBot:
 
     def snap90(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.82)
+        return self.find_line(spin_right, 0.7)
 
     def snap180(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 1.64)
+        return self.find_line(spin_right, 1.4)
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)

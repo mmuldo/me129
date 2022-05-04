@@ -327,15 +327,20 @@ class EEBot:
         self.set_pwm(-0.7, 0.7)
         time.sleep(2*0.86)
 
-    def check_intersection(self) -> List[bool]:
+    def check_intersection(self, heading: int) -> List[bool]:
         '''
         check for adjacent streets at an intersection
+
+        Parameters
+        ----------
+        heading : int
+            current heading
 
         Returns
         -------
         List[bool]
             length 4 list where each element indicates if there is a street
-            at [North, West, South, East]
+            at [Forwards, Left, Backwards, Right]
 
         TODO
         ----
@@ -375,8 +380,6 @@ class EEBot:
         '''sends eebot to go find some black tape and follow it'''
         prev = None
         
-        SPIN = True
-        SEARCH = True
         hit_line = False
         counter = 0
         spin_start_time = None

@@ -220,7 +220,7 @@ class EEBot:
 
     def find_line(self, spin_right: bool, wait_time: float) -> bool:
         sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.72, sign*0.68)
+        self.set_pwm(-sign*0.7, sign*0.7)
 
         start_time = datetime.now()
         rml = [0, 0, 0]
@@ -242,11 +242,11 @@ class EEBot:
 
     def snap90(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.68)
+        return self.find_line(spin_right, 0.95)
 
     def snap180(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 1.30)
+        return self.find_line(spin_right, 1.85)
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)
@@ -366,8 +366,8 @@ class EEBot:
 
     def scan(self, heading):
         # face backwards, since we know this will for sure have a road
-        self.snap90(True)
-        self.snap90(True)
+        self.snap90(False)
+        self.snap180(False)
         heading = (heading+2)%4
 
         # check if left street exists

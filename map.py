@@ -2,51 +2,6 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 import robot
 
-# Cardinal directions
-N = 0
-W = 1
-S = 2
-E = 3
-
-dir_to_diff = [
-    (0, 1),
-    (-1, 0),
-    (0, -1),
-    (1, 0),
-]
-
-# Directions
-F = 0   # forwards
-L = 1   # left
-B = 2   # backwards
-R = 3   # right
-
-diff_to_dir = {
-    (0, 1):     F,
-    (-1, 0):    L,
-    (0, -1):    B,
-    (1, 0):     R,
-}
-
-def route_to_directions(route: List[Intersection], heading: int):
-
-    curr_heading = heading
-    dirs = []
-    for j in range(len(route)-1):
-        direction = diff_to_dir[route[j+1]-route[j]]
-        dirs.append(
-            (
-                direction - curr_heading
-            ) % 4
-        )
-        print(curr_heading, direction)
-        print(dirs)
-        curr_heading = direction
-
-    heading = curr_heading
-    return dirs
-
-
 class Intersection:
     def __init__(self, long: int, lat: int):
         self.long = long
@@ -69,11 +24,62 @@ class Intersection:
     def __hash__(self):
         return (self.long, self.lat).__hash__()
 
+    def __add__(self, other):
+        return Intersection(self.long + other.long, self.lat + other.lat)
+
     def __sub__(self, other):
-        return (self.long - other.long, self.lat - other.lat)
+        return Intersection(self.long - other.long, self.lat - other.lat)
 
     def __str__(self):
         return str((self.long, self.lat))
+
+# Cardinal directions
+N = 0
+W = 1
+S = 2
+E = 3
+
+dir_to_diff = [
+    Intersection(0, 1),
+    Intersection(-1, 0),
+    Intersection(0, -1),
+    Intersection(1, 0),
+]
+
+# Directions
+F = 0   # forwards
+L = 1   # left
+B = 2   # backwards
+R = 3   # right
+
+diff_to_dir = {
+    Intersection(0, 1):     F,
+    Intersection(-1, 0):    L,
+    Intersection(0, -1):    B,
+    Intersection(1, 0):     R,
+}
+
+def route_to_directions(route: List[Intersection], heading: int):
+
+    print(route)
+    print([type(inter) for inter in route])
+    curr_heading = heading
+    dirs = []
+    for j in range(len(route)-1):
+        direction = diff_to_dir[route[j+1]-route[j]]
+        dirs.append(
+            (
+                direction - curr_heading
+            ) % 4
+        )
+        print(curr_heading, direction)
+        print(dirs)
+        curr_heading = direction
+
+    heading = curr_heading
+    return dirs
+
+
 
 
 class Map:
@@ -185,10 +191,12 @@ def build_map(bot: robot.EEBot, start: Intersection, heading: int):
             if not street:
                 continue
 
-            i = curr_int + Intersection(*dir_to_diff[dir])
-            if i not in visited:
-                queue.append(i)
-                visited.append(i)
+            new_int = curr_int + dir_to_diff[dir]
+            if new_int not in visited:
+                m.add_street(curr_int, new_int)
+                queue.append(new_int)
+                visited.append(new_int)
+    return m
        
 
 map1 = Map({})

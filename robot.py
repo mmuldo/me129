@@ -315,12 +315,12 @@ class EEBot:
     def left_inplace(self):
         '''turn 90 degrees to the left in place'''
         self.set_pwm(-0.7, 0.7)
-        time.sleep(0.80)
+        time.sleep(0.90)
 
     def right_inplace(self):
         '''turn 90 degrees to the right in place'''
         self.set_pwm(0.7, -0.7)
-        time.sleep(0.77)
+        time.sleep(0.9)
 
     def backwards_inplace(self):
         '''turn 180 degrees to the left in place'''
@@ -445,7 +445,9 @@ class EEBot:
         route : List[int]
             the sequence of turns (forward, left, backward, right) to follow
         '''
+        print("route: ",route)
         for dir in route:
+            print("dir: ", dir)
             self.turn(dir)
             self.follow_tape()
 

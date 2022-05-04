@@ -4,8 +4,8 @@ import math
 import time
 from map import Map, Intersection
 from datetime import datetime, timedelta
-
 from typing import List, Tuple
+from functools import reduce
 
 # first element is the left motor; second is the right.
 # first element of each tuple is the negative terminal; second is positive
@@ -241,6 +241,25 @@ class EEBot:
         else:
             return
 
+    def find_line(self, spin_right: bool) -> bool:
+        sign = -1 if spin_right else 1
+        self.set_pwm(-sign*0.7, sign*0.7)
+
+        start_time = datetime.now()
+        lmr = [0, 0, 0]
+        while (
+            spin_right and lmr != [0, 1, 1]
+        ) or (
+            not spin_right and lmr != [1, 1, 0]
+        ):
+            lmr = [self.io.read(pin) for pin in self.LED_detectors]
+            time_delta = datetime.now() - start_time
+            if time_delta.seconds + time_delta.microseconds * 1e-6 >= 2.5:
+                self.set_pwm(0, 0)
+                return False
+        self.set_pwm(0, 0)
+        return True
+
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)
         time.sleep(0.80)
@@ -358,14 +377,32 @@ class EEBot:
             self.follow_tape()
 
     def scan(self, heading):
+        # face N
         self.turn(-heading % 4)
 
-        streets = []
-        for i in range(4):
-            print('hit')
-            LED_readings = [self.io.read(pin) for pin in self.LED_detectors]
-            streets.append(1 in LED_readings)
-            self.left_inplace()
+        samples = []
+        start_time = datetime.now()
+        time_delta = timedelta(0)
+
+        while time_delta.seconds < 3:
+            if int(time_delta.microseconds / 1000) % 6 == 0:
+                samples.append(
+                    reduce(
+                        lambda led1, led2: led1 | led2,
+                        [ self.io.read(pin) for pin in self.LED_detectors ]
+                    )
+                )
+                time_delta = datetime.now() - start_time
+
+        self.find_line(False)
+
+        sample_div = int(len(samples)/8)
+        streets = [
+            1 in samples[:sample_div],
+            1 in samples[sample_div:3*sample_div],
+            1 in samples[3*sample_div:5*sample_div],
+            1 in samples[5*sample_div:7*sample_div],
+        ]
 
         print(streets)
         return streets

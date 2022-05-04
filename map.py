@@ -71,8 +71,7 @@ def route_to_directions(route: List[Intersection], heading: int):
         )
         curr_heading = direction
 
-    heading = curr_heading
-    return dirs
+    return (dirs, curr_heading)
 
 
 
@@ -175,15 +174,14 @@ def build_map(bot: robot.EEBot, start: Intersection, heading: int):
         # Dequeue a vertex from
         # queue and print it
         s = queue.pop(0)
-        bot.follow_directions(
-            route_to_directions(
-                m.shortest_route(curr_int, s),
-                heading
-            )
+        directions, heading = route_to_directions( 
+            m.shortest_route(curr_int, s),
+            heading
         )
+        bot.follow_directions(directions)
         curr_int = s
  
-        streets = bot.scan(heading)
+        streets, heading = bot.scan(heading)
 
         for dir, street in enumerate(streets):
             if not street:

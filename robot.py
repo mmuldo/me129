@@ -404,4 +404,4 @@ class EEBot:
         streets = [True, left_exists, back_exists, right_exists]
         streets = streets[-heading:] + streets[:-heading]
         print(streets)
-        return streets
+        return (streets, heading)

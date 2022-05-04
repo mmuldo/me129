@@ -243,7 +243,7 @@ class EEBot:
 
     def find_line(self, spin_right: bool, wait_time: float) -> bool:
         sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.62, sign*0.62)
+        self.set_pwm(-sign*0.7, sign*0.7)
 
         start_time = datetime.now()
         rml = [0, 0, 0]
@@ -258,18 +258,18 @@ class EEBot:
 
     def get_off_line(self, spin_right: bool):
         sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.62, sign*0.62)
+        self.set_pwm(-sign*0.7, sign*0.7)
         while 1 in [self.io.read(pin) for pin in self.LED_detectors]:
             pass
         self.set_pwm(0,0)
 
     def snap90(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.85)
+        return self.find_line(spin_right, 0.82)
 
     def snap180(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 1.7)
+        return self.find_line(spin_right, 1.64)
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)

@@ -7,7 +7,7 @@ control = robot.EEBot()
 
 
 if __name__ == "__main__":
-    #try:
+    try:
         #control.snap90(False)
         #control.snap90(False)
         #control.scan(3)
@@ -22,13 +22,11 @@ if __name__ == "__main__":
         #        3
         #    )
         #)
-        #map.build_map(control, (0,0), 1)
-    #except BaseException as ex:
-    #    print("Ending due to exception: %s" % repr(ex))
+        m = map.build_map(control, map.Intersection(0,0), 2)
+        print(m)
+    except BaseException as ex:
+        print("Ending due to exception: %s" % repr(ex))
 
-    #control.scan(0)
-    m = map.build_map(control, map.Intersection(0,0), 2)
-    print(m)
     control.shutdown()
     
 

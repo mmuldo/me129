@@ -30,11 +30,6 @@ L = 1   # left
 B = 2   # backwards
 R = 3   # right
 
-# 90 degree turns
-DEGREE90_PWM = 0.685
-DEGREE90_WAIT = 0.89
-
-
 
 def duty_to_pwm(
     motor_number: int,
@@ -203,7 +198,20 @@ class EEBot:
                 k*vel_left + fric,
                 k*vel_right + fric
             )
-    def turn(self, value):
+
+
+    def turn(self, value: int):
+        '''
+        turn in the specified direction
+
+        Parameters
+        ----------
+        value : int
+            0, 4 --> forwards
+            1, -3 --> left
+            2, -2 --> backwards
+            3, -1 --> right
+        '''
         turn = None
         #left turn
         if (value == 1 or value == -3):
@@ -218,7 +226,23 @@ class EEBot:
         else:
             return
 
+
     def find_line(self, spin_right: bool, wait_time: float) -> bool:
+        '''
+        spin until a line is found
+
+        Parameters
+        ----------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+        wait_time : float
+            amount of seconds to spin for before giving up
+
+        TODO
+        ----
+        check PWM vals
+        '''
         sign = -1 if spin_right else 1
         self.set_pwm(-sign*0.7, sign*0.7)
 
@@ -234,33 +258,89 @@ class EEBot:
         return True
 
     def get_off_line(self, spin_right: bool):
+        '''
+        if currently over a line, spin until off of it
+
+        Parameters
+        ----------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+        '''
         sign = -1 if spin_right else 1
         self.set_pwm(-sign*0.7, sign*0.7)
         while 1 in [self.io.read(pin) for pin in self.LED_detectors]:
             pass
         self.set_pwm(0,0)
 
+
     def snap90(self, spin_right: bool):
+        '''
+        spin until we hit a line, for a max of 90 degrees
+
+        Parameters
+        ----------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+
+        Returns
+        -------
+        bool
+            hit a line --> True
+            reached 90 degrees and no line was found --> false
+        '''
         self.get_off_line(spin_right)
         return self.find_line(spin_right, 0.95)
 
     def snap180(self, spin_right: bool):
+        '''
+        spin until we hit a line, for a max of 180 degrees
+
+        Parameters
+        ----------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+
+        Returns
+        -------
+        bool
+            hit a line --> True
+            reached 180 degrees and no line was found --> false
+        '''
         self.get_off_line(spin_right)
         return self.find_line(spin_right, 1.85)
 
     def left_inplace(self):
+        '''turn 90 degrees to the left in place'''
         self.set_pwm(-0.7, 0.7)
         time.sleep(0.80)
 
     def right_inplace(self):
+        '''turn 90 degrees to the right in place'''
         self.set_pwm(0.7, -0.7)
         time.sleep(0.77)
 
     def backwards_inplace(self):
+        '''turn 180 degrees to the left in place'''
         self.set_pwm(-0.7, 0.7)
         time.sleep(2*0.86)
 
-    def check_intersection(self):
+    def check_intersection(self) -> List[bool]:
+        '''
+        check for adjacent streets at an intersection
+
+        Returns
+        -------
+        List[bool]
+            length 4 list where each element indicates if there is a street
+            at [North, West, South, East]
+
+        TODO
+        ----
+        assess if we should use this or scan()
+        '''
         pins = self.LED_detectors
         #forward, left, backward, right
         streets = [False, False, True, False]
@@ -290,20 +370,7 @@ class EEBot:
         
         return streets
         
-    def known_map(self):
-        #map = ['L', 'R', 'R', 'R', 'F']
-        map = ['R', 'L', 'L', 'L', 'F']
-        for dir in map:
-            self.follow_tape()
-            
-            if dir == 'L':
-                self.turn(1)
-            elif dir == 'R':
-                self.turn(-1)
-            elif dir == 'F':
-                self.turn(0)
-        
-        
+
     def follow_tape(self):
         '''sends eebot to go find some black tape and follow it'''
         prev = None
@@ -360,11 +427,39 @@ class EEBot:
                 counter += .0005
 
     def follow_directions(self, route):
+        '''
+        follow a sequence of turns like so:
+            turn1 --> drive straight --> turn2 --> drive straight --> ...
+
+        Parameters
+        ----------
+        route : List[int]
+            the sequence of turns (forward, left, backward, right) to follow
+        '''
         for dir in route:
             self.turn(dir)
             self.follow_tape()
 
-    def scan(self, heading):
+    def scan(self, heading: int) -> Tuple[List[bool], int]:
+        '''
+        check for adjacent streets at an intersection
+
+        Parameters
+        ----------
+        heading : int
+            initial heading prior to scanning
+
+        Returns
+        -------
+        Tuple[List[bool], int]
+            first item is a length 4 list where each element indicates 
+            if there is a street at [North, West, South, East].
+            second item is the new heading after scanning
+
+        TODO
+        ----
+        assess if we should use this or check_intersection()
+        '''
         # face backwards, since we know this will for sure have a road
         self.snap90(False)
         self.snap180(False)

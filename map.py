@@ -3,18 +3,20 @@ from typing import Dict, List, Optional, Tuple
 import robot
 
 class Intersection:
+    '''
+    Represents an intersection in a map
+    basically just a tuple (longitude, latitude)
+
+    Attributes
+    ----------
+    long : int
+        longitude (x coordinate) in map
+    latitude : int
+        latitude (y coordinate) in map
+    '''
     def __init__(self, long: int, lat: int):
         self.long = long
         self.lat = lat
-
-        # initialize streets to None (which means "unexplored")
-        # True --> there's a street in that direction
-        # False --> there's no street in that direction
-        # Recall that the directions are [north, west, south, east]
-        #self.streets = [None] * 4
-
-    #def update_street(self, street: int, state: Optional[bool] = None):
-    #    self.streets[street % 4] = state
 
     def __eq__(self, other):
         if isinstance(other, Intersection):
@@ -34,11 +36,12 @@ class Intersection:
         return str((self.long, self.lat))
 
 # Cardinal directions
-N = 0
-W = 1
-S = 2
-E = 3
+N = 0 #north
+W = 1 #west
+S = 2 #south
+E = 3 #east
 
+# converts cardinal direction to coordinate vector
 dir_to_diff = [
     Intersection(0, 1),
     Intersection(-1, 0),
@@ -52,6 +55,7 @@ L = 1   # left
 B = 2   # backwards
 R = 3   # right
 
+# converts a coordinate vector to a direction
 diff_to_dir = {
     Intersection(0, 1):     F,
     Intersection(-1, 0):    L,
@@ -59,15 +63,33 @@ diff_to_dir = {
     Intersection(1, 0):     R,
 }
 
-def route_to_directions(route: List[Intersection], heading: int):
+def route_to_directions(
+    route: List[Intersection], 
+    heading: int
+) -> Tuple[List[int], int]:
+    '''
+    converts a series of Intersections (i.e. coordinate points) to directions
+    to follow
+
+    Parameters
+    ----------
+    route : List[Intersection]
+        sequence of Intersections in map to get from one intersection to another
+    heading : int
+        current heading
+
+    Returns
+    -------
+    Tuple[List[int], int]
+        first item is the sequence of directions (F, L, B, R) to follow
+        second item is the new heading after completing directions
+    '''
     curr_heading = heading
     dirs = []
     for j in range(len(route)-1):
         direction = diff_to_dir[route[j+1]-route[j]]
         dirs.append(
-            (
-                direction - curr_heading
-            ) % 4
+            ( direction - curr_heading) % 4
         )
         curr_heading = direction
 
@@ -77,7 +99,22 @@ def route_to_directions(route: List[Intersection], heading: int):
 
 
 class Map:
-    def __init__(self, intersections):
+    '''
+    represents map (graph in which the nodes are intersections and edges are
+    streets)
+
+    Attributes
+    ----------
+    intersections : Dict[Intersection, List[Intersection]]
+        adjacency dictionary for nodes in graph (indicates the neighbors of
+        each intersection)
+
+    Methods
+    -------
+    add_street(int1, int2): adds street (edge) to map
+    shortest_route(src, dest): computes shortest route from src to dest
+    '''
+    def __init__(self, intersections: Dict[Intersection, List[Intersection]]):
         self.intersections = intersections
 
     def add_street(
@@ -101,11 +138,27 @@ class Map:
             self.intersections[int2] = [int1]
 
 
-    # Function to find the shortest
-    # path between two nodes of a graph
-    def shortest_route(self, src: Intersection, dest: Intersection):
-        '''uses BFS since this is an unweighted graph'''
+    def shortest_route(
+        self, 
+        src: Intersection, 
+        dest: Intersection
+    ) -> List[Intersection]:
+        '''
+        computes shortest sequence of intersections from src to dest
+        uses BFS since this is an unweighted graph
 
+        Parameters
+        ----------
+        src : Intersection
+            first intersection in route
+        dest : Intersection
+            last intersection in route
+
+        Returns
+        -------
+        List[Intersections]
+            the shortest sequence of intersections connecting src to dest
+        '''
         explored = []
         
         # Queue for traversing the
@@ -153,9 +206,28 @@ class Map:
 
 
 def build_map(bot: robot.EEBot, start: Intersection, heading: int):
+    '''
+    contructs a map by having eebot traverse it
+    uses BFS since this is an unweighted graph
+
+    Parameters
+    ----------
+    bot : robot.EEbot
+        our little eebot :)
+    start : Intersection
+        starting intersection
+    heading : int
+        initial heading of eebot
+        NB: needs to be facing 180 degrees away from a street (black tape)
+
+    Returns
+    -------
+    Map
+        the map
+    '''
     m = Map({})
     s = start
-    curr_int = s
+    curr_int = s # current intersectoin the bot is at
 
     # Mark all the vertices as not visited
     visited = []
@@ -169,34 +241,44 @@ def build_map(bot: robot.EEBot, start: Intersection, heading: int):
     visited.append(s)
  
     while queue:
+        # for debugging
         print(m)
         print(curr_int)
         print(heading)
+        print()
  
-        # Dequeue a vertex from
-        # queue and print it
+        # dequeue next intersection to explore
         s = queue.pop(0)
+        # get directions to this intersection, and the new heading once we've
+        # arrived
         directions, heading = route_to_directions( 
             m.shortest_route(curr_int, s),
             heading
         )
+        # go to the intersection
         bot.follow_directions(directions)
         curr_int = s
  
+        # scan for streets connected to intersection
+        # also get the new heading
         streets, heading = bot.scan(heading)
 
         for dir, street in enumerate(streets):
             if not street:
+                # don't do anything if there's no street in this direction
                 continue
 
+            # if there is a street in this direction, add it to map
             new_int = curr_int + dir_to_diff[dir]
             m.add_street(curr_int, new_int)
             if new_int not in visited:
+                # if we haven't visited the adjacent intersection, queue it
                 queue.append(new_int)
                 visited.append(new_int)
     return m
        
 
+# maps in classroom (for testing shortest_route)
 map1 = Map({})
 map1.add_street(Intersection(0,0), Intersection(0,1))
 map1.add_street(Intersection(0,0), Intersection(-1,0))

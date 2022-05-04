@@ -391,7 +391,8 @@ class EEBot:
 
     def scan(self, heading):
         # face backwards, since we know this will for sure have a road
-        #self.turn(-2)
+        self.snap90(False)
+        self.snap90(False)
 
         # check if left street exists
         left_exists = self.snap90(False)

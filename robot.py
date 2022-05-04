@@ -243,16 +243,12 @@ class EEBot:
 
     def find_line(self, spin_right: bool) -> bool:
         sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.7, sign*0.7)
+        self.set_pwm(-sign*0.62, sign*0.62)
 
         start_time = datetime.now()
-        lmr = [0, 0, 0]
-        while (
-            spin_right and lmr != [0, 1, 1]
-        ) or (
-            not spin_right and lmr != [1, 1, 0]
-        ):
-            lmr = [self.io.read(pin) for pin in self.LED_detectors]
+        rml = [0, 0, 0]
+        while rml[1] != 1:
+            rml = [self.io.read(pin) for pin in self.LED_detectors]
             time_delta = datetime.now() - start_time
             if time_delta.seconds + time_delta.microseconds * 1e-6 >= 2.5:
                 self.set_pwm(0, 0)
@@ -377,32 +373,47 @@ class EEBot:
             self.follow_tape()
 
     def scan(self, heading):
-        # face N
-        self.turn(-heading % 4)
+        # face backwards, since we know this will for sure have a road
+        #self.turn(-2)
 
         samples = []
         start_time = datetime.now()
         time_delta = timedelta(0)
 
-        while time_delta.seconds < 3:
-            if int(time_delta.microseconds / 1000) % 6 == 0:
-                samples.append(
-                    reduce(
-                        lambda led1, led2: led1 | led2,
-                        [ self.io.read(pin) for pin in self.LED_detectors ]
-                    )
+        #while time_delta.seconds + time_delta.microseconds * 1e-6 < 1.5:
+        #    if int(time_delta.microseconds / 10000) % 3 == 0:
+        #        samples.append(
+        #            reduce(
+        #                lambda led1, led2: led1 | led2,
+        #                [ self.io.read(pin) for pin in self.LED_detectors ]
+        #            )
+        #        )
+        #    time_delta = datetime.now() - start_time
+        self.set_pwm(-.68,.68)
+        for _ in range(100):
+            sample = [ self.io.read(pin) for pin in self.LED_detectors ]
+            print(sample)
+            samples.append(
+                reduce(
+                    lambda led1, led2: led1 | led2,
+                    sample
                 )
-                time_delta = datetime.now() - start_time
+            )
+            time.sleep(0.0285)
+
 
         self.find_line(False)
+        #self.set_pwm(0,0)
+        print(len(samples))
 
-        sample_div = int(len(samples)/8)
+        sample_div = round(len(samples)/15)
         streets = [
             1 in samples[:sample_div],
-            1 in samples[sample_div:3*sample_div],
-            1 in samples[3*sample_div:5*sample_div],
-            1 in samples[5*sample_div:7*sample_div],
+            1 in samples[3*sample_div:6*sample_div],
+            1 in samples[7*sample_div:10*sample_div],
+            1 in samples[11*sample_div:14*sample_div],
         ]
+        streets = streets[-heading:] + streets[:-heading]
 
         print(streets)
         return streets

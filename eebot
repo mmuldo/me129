@@ -144,14 +144,14 @@ command_mapping = {
         bot.follow_directions,
         [args]
     ),
-    'scan': Command(
-        bot.scan,
-        [int(arg) for arg in args]
-    )
+    #'scan': Command(
+    #    bot.scan,
+    #    [int(arg) for arg in args]
+    #)
 }
 
 # default time to run to 0 second
-time.sleep(t if t else 0)
+#time.sleep(t if t else 0)
 try:
     print(command)
     command_mapping[command].run()

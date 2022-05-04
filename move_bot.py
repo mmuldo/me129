@@ -13,16 +13,20 @@ if __name__ == "__main__":
         #control.scan(3)
         #print(*map.map1.shortest_route((0,2), (-2,0)))
         #print(*robot.route_to_directions(map.map1.shortest_route((0,2), (-2,0)),0))
+        #print(map.map3)
         #control.follow_directions(
-        #    robot.route_to_directions(
-        #        map.map2.shortest_route((3,0),(1,1)),
-        #        2
+        #    map.route_to_directions(
+        #        map.map3.shortest_route(
+        #            map.Intersection(2,2),map.Intersection(2,0)
+        #        ),
+        #        3
         #    )
         #)
-    #    map.build_map(control, (0,0), 1)
+        #map.build_map(control, (0,0), 1)
     #except BaseException as ex:
     #    print("Ending due to exception: %s" % repr(ex))
 
+    #control.scan(1)
     m = map.build_map(control, map.Intersection(0,0), 1)
     print(m)
     control.shutdown()

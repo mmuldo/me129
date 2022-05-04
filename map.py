@@ -60,9 +60,6 @@ diff_to_dir = {
 }
 
 def route_to_directions(route: List[Intersection], heading: int):
-
-    print(route)
-    print([type(inter) for inter in route])
     curr_heading = heading
     dirs = []
     for j in range(len(route)-1):
@@ -72,8 +69,6 @@ def route_to_directions(route: List[Intersection], heading: int):
                 direction - curr_heading
             ) % 4
         )
-        print(curr_heading, direction)
-        print(dirs)
         curr_heading = direction
 
     heading = curr_heading
@@ -173,6 +168,9 @@ def build_map(bot: robot.EEBot, start: Intersection, heading: int):
     visited.append(s)
  
     while queue:
+        print(m)
+        print(curr_int)
+        print(heading)
  
         # Dequeue a vertex from
         # queue and print it
@@ -227,3 +225,19 @@ map2.add_street(Intersection(1,2), Intersection(2,2))
 map2.add_street(Intersection(3,1), Intersection(3,0))
 map2.add_street(Intersection(3,1), Intersection(3,2))
 map2.add_street(Intersection(2,2), Intersection(3,2))
+
+map3 = Map({})
+map3.add_street(Intersection(0,0), Intersection(1,0))
+map3.add_street(Intersection(0,0), Intersection(0,1))
+map3.add_street(Intersection(1,0), Intersection(2,0))
+map3.add_street(Intersection(1,0), Intersection(1,1))
+map3.add_street(Intersection(0,1), Intersection(1,1))
+map3.add_street(Intersection(0,1), Intersection(0,2))
+map3.add_street(Intersection(2,0), Intersection(3,0))
+map3.add_street(Intersection(1,1), Intersection(2,1))
+map3.add_street(Intersection(1,1), Intersection(1,2))
+map3.add_street(Intersection(0,2), Intersection(1,2))
+map3.add_street(Intersection(3,0), Intersection(3,1))
+map3.add_street(Intersection(2,1), Intersection(3,1))
+map3.add_street(Intersection(2,1), Intersection(2,2))
+map3.add_street(Intersection(1,2), Intersection(2,2))

@@ -27,7 +27,7 @@ if __name__ == "__main__":
     #    print("Ending due to exception: %s" % repr(ex))
 
     #control.scan(1)
-    m = map.build_map(control, map.Intersection(0,0), 1)
+    m = map.build_map(control, map.Intersection(0,2), 1)
     print(m)
     control.shutdown()
     

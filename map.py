@@ -88,13 +88,15 @@ class Map:
 
         # connect first intersection to second
         try:
-            self.intersections[int1].append(int2)
+            if not int2 in self.intersections[int1]:
+                self.intersections[int1].append(int2)
         except KeyError:
             self.intersections[int1] = [int2]
 
         # connect second intersection to first
         try:
-            self.intersections[int2].append(int1)
+            if not int1 in self.intersections[int2]:
+                self.intersections[int2].append(int1)
         except KeyError:
             self.intersections[int2] = [int1]
 
@@ -188,8 +190,8 @@ def build_map(bot: robot.EEBot, start: Intersection, heading: int):
                 continue
 
             new_int = curr_int + dir_to_diff[dir]
+            m.add_street(curr_int, new_int)
             if new_int not in visited:
-                m.add_street(curr_int, new_int)
                 queue.append(new_int)
                 visited.append(new_int)
     return m

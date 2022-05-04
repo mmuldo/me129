@@ -61,6 +61,14 @@ class Intersection:
     #def update_street(self, street: int, state: Optional[bool] = None):
     #    self.streets[street % 4] = state
 
+    def __eq__(self, other):
+        if isinstance(other, Intersection):
+            return self.long == other.long and self.lat == other.lat
+        return False
+
+    def __hash__(self):
+        return (self.long, self.lat).__hash__()
+
     def __sub__(self, other):
         return (self.long - other.long, self.lat - other.lat)
 
@@ -71,31 +79,12 @@ class Intersection:
 class Map:
     def __init__(self, intersections):
         self.intersections = intersections
-        self.long_lats = [(inter.long, inter.lat) for inter in intersections]
-
-    def long_lat_to_intersection(
-        self, 
-        long_lat: Tuple[int, int]
-    ) -> Intersection:
-        if long_lat not in self.long_lats:
-            self.long_lats.append(long_lat)
-            return Intersection(*long_lat)
-        else:
-            return [
-                intersection 
-                for intersection in self.intersections 
-                if intersection.long == long_lat[0] 
-                and intersection.lat == long_lat[1]
-            ][0]
 
     def add_street(
         self, 
-        long_lat1: Tuple[int, int], 
-        long_lat2: Tuple[int, int]
+        int1: Intersection,
+        int2: Intersection
     ):
-
-        int1 = self.long_lat_to_intersection(long_lat1)
-        int2 = self.long_lat_to_intersection(long_lat2)
 
         # connect first intersection to second
         try:
@@ -112,11 +101,8 @@ class Map:
 
     # Function to find the shortest
     # path between two nodes of a graph
-    def shortest_route(self, start, end):
+    def shortest_route(self, src: Intersection, dest: Intersection):
         '''uses BFS since this is an unweighted graph'''
-
-        src = self.long_lat_to_intersection(start)
-        dest = self.long_lat_to_intersection(end)
 
         explored = []
         
@@ -164,17 +150,17 @@ class Map:
         ])
 
 
-def build_map(bot: robot.EEBot, start: Tuple[int, int], heading: int):
+def build_map(bot: robot.EEBot, start: Intersection, heading: int):
     m = Map({})
-    s = Intersection(*start)
-    curr_long_lat = start
+    s = start
+    curr_int = s
 
     # Mark all the vertices as not visited
     visited = []
  
     # Create a queue for BFS
     queue = []
- 
+
     # Mark the source node as
     # visited and enqueue it
     queue.append(s)
@@ -187,46 +173,49 @@ def build_map(bot: robot.EEBot, start: Tuple[int, int], heading: int):
         s = queue.pop(0)
         bot.follow_directions(
             route_to_directions(
-                m.shortest_route(curr_long_lat, (s.long, s.lat)),
+                m.shortest_route(curr_int, s),
                 heading
             )
         )
-        curr_long_lat = (s.long, s.lat)
+        curr_int = s
  
         streets = bot.scan(heading)
 
-        for dir in streets:
-            i = m.long_lat_to_intersection(dir_to_diff[dir] + curr_long_lat)
+        for dir, street in enumerate(streets):
+            if not street:
+                continue
+
+            i = curr_int + Intersection(*dir_to_diff[dir])
             if i not in visited:
                 queue.append(i)
                 visited.append(i)
-        
+       
 
 map1 = Map({})
-map1.add_street((0,0), (0,1))
-map1.add_street((0,0), (-1,0))
-map1.add_street((0,1), (0,2))
-map1.add_street((0,1), (-1,1))
-map1.add_street((-1,0), (-2,0))
-map1.add_street((0,2), (-1,2))
-map1.add_street((-1,1), (-1,2))
-map1.add_street((-1,1), (-2,1))
-map1.add_street((-2,0), (-2,1))
-map1.add_street((-2,0), (-3,0))
-map1.add_street((-2,1), (-3,1))
-map1.add_street((-3,0), (-3,1))
+map1.add_street(Intersection(0,0), Intersection(0,1))
+map1.add_street(Intersection(0,0), Intersection(-1,0))
+map1.add_street(Intersection(0,1), Intersection(0,2))
+map1.add_street(Intersection(0,1), Intersection(-1,1))
+map1.add_street(Intersection(-1,0), Intersection(-2,0))
+map1.add_street(Intersection(0,2), Intersection(-1,2))
+map1.add_street(Intersection(-1,1), Intersection(-1,2))
+map1.add_street(Intersection(-1,1), Intersection(-2,1))
+map1.add_street(Intersection(-2,0), Intersection(-2,1))
+map1.add_street(Intersection(-2,0), Intersection(-3,0))
+map1.add_street(Intersection(-2,1), Intersection(-3,1))
+map1.add_street(Intersection(-3,0), Intersection(-3,1))
 
 map2 = Map({})
-map2.add_street((0,0), (1,0))
-map2.add_street((0,0), (0,1))
-map2.add_street((1,0), (2,0))
-map2.add_street((1,0), (1,1))
-map2.add_street((2,0), (2,1))
-map2.add_street((1,1), (1,2))
-map2.add_street((2,1), (3,1))
-map2.add_street((2,1), (2,2))
-map2.add_street((1,2), (0,2))
-map2.add_street((1,2), (2,2))
-map2.add_street((3,1), (3,0))
-map2.add_street((3,1), (3,2))
-map2.add_street((2,2), (3,2))
+map2.add_street(Intersection(0,0), Intersection(1,0))
+map2.add_street(Intersection(0,0), Intersection(0,1))
+map2.add_street(Intersection(1,0), Intersection(2,0))
+map2.add_street(Intersection(1,0), Intersection(1,1))
+map2.add_street(Intersection(2,0), Intersection(2,1))
+map2.add_street(Intersection(1,1), Intersection(1,2))
+map2.add_street(Intersection(2,1), Intersection(3,1))
+map2.add_street(Intersection(2,1), Intersection(2,2))
+map2.add_street(Intersection(1,2), Intersection(0,2))
+map2.add_street(Intersection(1,2), Intersection(2,2))
+map2.add_street(Intersection(3,1), Intersection(3,0))
+map2.add_street(Intersection(3,1), Intersection(3,2))
+map2.add_street(Intersection(2,2), Intersection(3,2))

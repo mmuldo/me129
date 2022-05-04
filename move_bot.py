@@ -8,6 +8,8 @@ control = robot.EEBot()
 
 if __name__ == "__main__":
     try:
+        #control.snap90(False)
+        #control.snap90(False)
         control.scan(3)
         #print(*map.map1.shortest_route((0,2), (-2,0)))
         #print(*robot.route_to_directions(map.map1.shortest_route((0,2), (-2,0)),0))

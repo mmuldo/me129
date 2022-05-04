@@ -265,7 +265,7 @@ class EEBot:
 
     def snap90(self, spin_right: bool):
         self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.67)
+        return self.find_line(spin_right, 0.68)
 
     def snap180(self, spin_right: bool):
         self.get_off_line(spin_right)
@@ -393,6 +393,7 @@ class EEBot:
         # face backwards, since we know this will for sure have a road
         self.snap90(False)
         self.snap90(False)
+        new_heading = (heading+2)%4
 
         # check if left street exists
         left_exists = self.snap90(False)
@@ -426,6 +427,6 @@ class EEBot:
             self.find_line(True, 4)
 
         streets = [True, left_exists, back_exists, right_exists]
-        streets = streets[-heading:] + streets[:-heading]
+        streets = streets[-new_heading:] + streets[:-new_heading]
         print(streets)
         return streets

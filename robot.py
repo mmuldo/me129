@@ -241,7 +241,7 @@ class EEBot:
         else:
             return
 
-    def find_line(self, spin_right: bool) -> bool:
+    def find_line(self, spin_right: bool, wait_time: float) -> bool:
         sign = -1 if spin_right else 1
         self.set_pwm(-sign*0.62, sign*0.62)
 
@@ -250,11 +250,26 @@ class EEBot:
         while rml[1] != 1:
             rml = [self.io.read(pin) for pin in self.LED_detectors]
             time_delta = datetime.now() - start_time
-            if time_delta.seconds + time_delta.microseconds * 1e-6 >= 2.5:
+            if time_delta.seconds + time_delta.microseconds * 1e-6 >= wait_time:
                 self.set_pwm(0, 0)
                 return False
         self.set_pwm(0, 0)
         return True
+
+    def get_off_line(self, spin_right: bool):
+        sign = -1 if spin_right else 1
+        self.set_pwm(-sign*0.62, sign*0.62)
+        while 1 in [self.io.read(pin) for pin in self.LED_detectors]:
+            pass
+        self.set_pwm(0,0)
+
+    def snap90(self, spin_right: bool):
+        self.get_off_line(spin_right)
+        return self.find_line(spin_right, 0.9)
+
+    def snap180(self, spin_right: bool):
+        self.get_off_line(spin_right)
+        return self.find_line(spin_right, 1.8)
 
     def left_inplace(self):
         self.set_pwm(-0.7, 0.7)
@@ -372,48 +387,44 @@ class EEBot:
             self.turn(dir)
             self.follow_tape()
 
+        
+
     def scan(self, heading):
         # face backwards, since we know this will for sure have a road
         #self.turn(-2)
 
-        samples = []
-        start_time = datetime.now()
-        time_delta = timedelta(0)
+        # check if left street exists
+        left_exists = self.snap90(False)
+        # spin back to starting position
+        self.get_off_line(True)
+        self.find_line(True, 4)
 
-        #while time_delta.seconds + time_delta.microseconds * 1e-6 < 1.5:
-        #    if int(time_delta.microseconds / 10000) % 3 == 0:
-        #        samples.append(
-        #            reduce(
-        #                lambda led1, led2: led1 | led2,
-        #                [ self.io.read(pin) for pin in self.LED_detectors ]
-        #            )
-        #        )
-        #    time_delta = datetime.now() - start_time
-        self.set_pwm(-.68,.68)
-        for _ in range(100):
-            sample = [ self.io.read(pin) for pin in self.LED_detectors ]
-            print(sample)
-            samples.append(
-                reduce(
-                    lambda led1, led2: led1 | led2,
-                    sample
-                )
-            )
-            time.sleep(0.0285)
+        # check if right street exists
+        right_exists = self.snap90(True)
+        # spin back to starting position
+        self.get_off_line(False)
+        self.find_line(False, 4)
 
+        # check if back street exists
+        if left_exists:
+            # if there's a left street, we have to do 2 snap90s because of the
+            # tape in between
+            self.snap90(False)
+            back_exists = self.snap90(False)
+            # spin back to starting position
+            self.get_off_line(True)
+            self.find_line(True, 4)
+            self.get_off_line(True)
+            self.find_line(True, 4)
+        else:
+            # if there's no left street, we only need 1 snap180 because there's
+            # no tape in between
+            back_exists = self.snap180(False)
+            # spin back to starting position
+            self.get_off_line(True)
+            self.find_line(True, 4)
 
-        self.find_line(False)
-        #self.set_pwm(0,0)
-        print(len(samples))
-
-        sample_div = round(len(samples)/15)
-        streets = [
-            1 in samples[:sample_div],
-            1 in samples[3*sample_div:6*sample_div],
-            1 in samples[7*sample_div:10*sample_div],
-            1 in samples[11*sample_div:14*sample_div],
-        ]
+        streets = [True, left_exists, back_exists, right_exists]
         streets = streets[-heading:] + streets[:-heading]
-
         print(streets)
         return streets

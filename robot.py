@@ -146,11 +146,20 @@ class EEBot:
         self.io.stop()
 
 
-    def detectors_status(self):
-        '''prints status of each LED detector'''
-        for pin in self.LED_detectors:
-            print(LED_PINS[pin], self.io.read(pin))
-        print('----')
+    def detectors_status(self) -> Tuple[bool, bool, bool]:
+        '''gets reading of each detector
+
+        Returns
+        -------
+        Tuple[bool, bool, bool]
+            (left, middle, right) LED reading.
+            True --> LED on (over black tape)
+            False --> LED off (over white floor)
+        '''
+        return tuple(
+            bool(self.io.read(pin)) 
+            for pin in sorted(self.LED_detectors)
+        )
 
     def set_pwm(self, leftdutycycle: float, rightdutycycle: float):
         '''

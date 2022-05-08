@@ -2,7 +2,6 @@ import pigpio
 import sys
 import math
 import time
-from map import Map, Intersection
 from datetime import datetime, timedelta
 from typing import List, Tuple
 from functools import reduce
@@ -30,6 +29,10 @@ L = 1   # left
 B = 2   # backwards
 R = 3   # right
 
+# existence of streets
+UNKNOWN = -1
+ABSENT = 0
+PRESENT = 1
 
 def duty_to_pwm(
     motor_number: int,
@@ -208,6 +211,18 @@ class EEBot:
                 k*vel_right + fric
             )
 
+    def spin_kick(self, spin_right: bool):
+        '''maxes out pwm spin for a short period to get motors going
+
+        Parameters
+        -------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+        '''
+        sign = -1 if spin_right else 1
+        self.set_pwm(-sign * 1, sign*1)
+        time.sleep(0.01)
 
     def turn(self, value: int):
         '''
@@ -282,44 +297,66 @@ class EEBot:
             pass
         self.set_pwm(0,0)
 
-
-    def snap90(self, spin_right: bool):
+    def snap(self, spin_right: bool, pwm: float) -> int:
         '''
-        spin until we hit a line, for a max of 90 degrees
+        starts spinning and snaps to nearest black tape.
+        if currently over black tape, spins off and then starts
+        searching for black tape.
 
         Parameters
         ----------
         spin_right : bool
             True --> spin right
             False --> spin left
+        pwm : float
+            pwm to spin at (between 0.0 and 1.0)
 
         Returns
         -------
-        bool
-            hit a line --> True
-            reached 90 degrees and no line was found --> false
+        int
+            degree amount turned, in 90 degree increments
+            i.e. returns 90, 180, 270, or 360
         '''
-        self.get_off_line(spin_right)
-        return self.find_line(spin_right, 0.95)
+        spin_sign = -1 if spin_right else 1
+        self.spin_kick(spin_right)
+        self.set_pwm(- spin_sign * pwm, spin_sign * pwm)
+        outside_LED_off = True
 
-    def snap180(self, spin_right: bool):
-        '''
-        spin until we hit a line, for a max of 180 degrees
+        start = time.perf_counter()
+        while True:
+            left, middle, right = self.detectors_status()
+            if (
+                (not spin_right and left) or (spin_right and right)
+            ) and outside_LED_off:
+                t1 = time.perf_counter() - start
+                outside_LED_off = False
+            if not left and middle and not right and not outside_LED_off:
+                t2 = time.perf_counter() - start
+                ratio = t2/(t2-t1)
+                break
+            if time.perf_counter() - start > 20:
+                # shouldn't ever hit this, but just in case
+                break
+        self.set_pwm(0,0)
 
-        Parameters
-        ----------
-        spin_right : bool
-            True --> spin right
-            False --> spin left
+        # in theory, the width of the tape corresponds to around 20 degrees,
+        # so the the ratio of a spin in right angle increments to the spin
+        # of a single LED across the tape is 90/20 = 4.5, 180/20 = 9,
+        # 270/20 = 13.5, and 360/20 = 18
+        if ratio < 7:
+            # should be around 4.5 in this case
+            return 90
+        elif 7 <= ratio < 11:
+            # should be around 9 in this case
+            return 180
+        elif 11 <= ratio < 16:
+            # should be around 13.5 in this case
+            return 270
+        else:
+            return 360
 
-        Returns
-        -------
-        bool
-            hit a line --> True
-            reached 180 degrees and no line was found --> false
-        '''
-        self.get_off_line(spin_right)
-        return self.find_line(spin_right, 1.85)
+        # shouldn't reach this point
+        assert False
 
     def left_inplace(self):
         '''turn 90 degrees to the left in place'''
@@ -391,6 +428,77 @@ class EEBot:
         return (streets, heading)
         
 
+    def adjust(self):
+        '''
+        if over tape, adjusts bot such that only middle sensor is over
+        if not over tape, does nothing
+        '''
+        left, middle, right = self.detectors_status()
+        if not left and not middle and not right:
+            return
+
+        while self.detectors_status()[0]:
+            # adjust left
+            self.set_pwm(-0.65, 0.65)
+
+        while self.detectors_status()[2]:
+            # adjust right
+            self.set_pwm(0.65, -0.65)
+
+        self.set_pwm(0,0)
+
+    def next_intersection(self) -> bool:
+        '''
+        sends eebot to next intersection
+
+        Preconditions
+        -------------
+        assumes we are currently on a street (there's black tape under
+        the LEDs)
+
+        Returns
+        -------
+        bool
+            True --> successfully reached an intersection
+            False --> got off the map somehow (fail)
+        '''
+        while True:
+            left, middle, right = self.detectors_status()
+
+            if not left and middle and not right:
+                # keep going straight
+                self.set(0.25, 0)
+            elif not left and right:
+                # veer right
+                self.set(0.25, -90)
+            elif left and not right:
+                # veer left
+                self.set(0.25, 90)
+            elif left and middle and right:
+                # reached intersection
+                # drive forward a little so wheels are over intersection
+                self.set(0.25, 0)
+                time.sleep(.153/0.25) # need to travel ~0.153 meters
+
+                # stop
+                self.set_pwm(0,0)
+
+                # adjust such that only middle sensor over tape (if possible)
+                self.adjust()
+
+                return True
+            elif not left and not middle and not right:
+                # off map
+                # stop
+                self.set_pwm(0,0)
+                return False
+            else:
+                # shouldn't hit this because we exhausted all valid cases
+                # only non valid case is
+                #   left and not middle and right
+                assert False
+
+
     def follow_tape(self):
         '''sends eebot to go find some black tape and follow it'''
         prev = None
@@ -460,7 +568,7 @@ class EEBot:
             self.turn(dir)
             self.follow_tape()
 
-    def scan(self, heading: int) -> Tuple[List[bool], int]:
+    def partial_scan(self, heading: int) -> Tuple[List[int], int]:
         '''
         check for adjacent streets at an intersection
 
@@ -469,56 +577,43 @@ class EEBot:
         heading : int
             initial heading prior to scanning
 
+        Preconditions
+        -------------
+        Assumes at an intersection and there is black tape 180 degrees away
+
         Returns
         -------
-        Tuple[List[bool], int]
-            first item is a length 4 list where each element indicates 
+        Tuple[List[int], int]
+            first item is a length 4 list where each element indicates
             if there is a street at [North, West, South, East].
+            -1 --> Unknown
+            0 --> no street
+            1 --> street exists
+
             second item is the new heading after scanning
-
-        TODO
-        ----
-        assess if we should use this or check_intersection()
         '''
-        # face backwards, since we know this will for sure have a road
-        self.snap90(False)
-        self.snap180(False)
-        heading = (heading+2)%4
+        streets = [UNKNOWN] * 4
+        # assume there is black tape directly behind (since we just came
+        # from there)
+        streets[B] = PRESENT
 
-        # check if left street exists
-        left_exists = self.snap90(False)
-        # spin back to starting position
-        self.get_off_line(True)
-        self.find_line(True, 4)
+        # check forward direction
+        streets[F] = PRESENT if self.detectors_status()[1] else ABSENT
 
-        # check if right street exists
-        right_exists = self.snap90(True)
-        # spin back to starting position
-        self.get_off_line(False)
-        self.find_line(False, 4)
-
-        # check if back street exists
-        if left_exists:
-            # if there's a left street, we have to do 2 snap90s because of the
-            # tape in between
-            self.snap90(False)
-            back_exists = self.snap90(False)
-            # spin back to starting position
-            self.get_off_line(True)
-            self.find_line(True, 4)
-            self.get_off_line(True)
-            self.find_line(True, 4)
-        else:
-            # if there's no left street, we only need 1 snap180 because there's
-            # no tape in between
-            back_exists = self.snap180(False)
-            # spin back to starting position
-            self.get_off_line(True)
-            self.find_line(True, 4)
-
-        streets = [True, left_exists, back_exists, right_exists]
+        # check right
+        turn_amount = self.snap(spin_right=True, pwm=0.7)
+        streets[R] = PRESENT if turn_amount == 90 else ABSENT
 
         # realign streets based on heading (so that they're [N, W, S, E]
         streets = streets[-heading:] + streets[:-heading]
-        print(streets)
-        return (streets, heading)
+
+        # readjust heading
+        if turn_amount == 90:
+            new_heading = (heading + R) % 4
+        elif turn_amount == 180:
+            new_heading = (heading + B) % 4
+        else:
+            # turn_amount should be 90 or 180
+            assert False
+
+        return (streets, new_heading)

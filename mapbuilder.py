@@ -55,7 +55,7 @@ def goto(
     bot.follow_directions(directions)
     return heading
 
-def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int] = (0, 0)):
+def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int]):
     '''
     contructs a map by having eebot traverse it
 
@@ -74,10 +74,10 @@ def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int] = (0, 0)):
     Map
         the map
     '''
-    m = Map()
     current = Intersection(start)
-    m.intersections.append(current)
+    m = Map([current])
     come_back = [current]
+    first_iteration = True
 
     while come_back:
         # next intersection to explore is at the top of the come_back queue
@@ -89,22 +89,26 @@ def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int] = (0, 0)):
         print(f'current intersection: {current}')
         print(f'current streets: {current.streets}')
 
-        if UNKNOWN not in current.streets:
-            print('already known')
-            # know everything about this intersection already
-            # so got to an unknown intersection
-            next = come_back[0]
-            heading = goto(m, bot, heading, current, next)
-            current = next
-            print(f'going to {current}')
-            print()
+        #if UNKNOWN not in current.streets:
+        #    print('already known')
+        #    # know everything about this intersection already
+        #    # so got to an unknown intersection
+        #    next = come_back[0]
+        #    heading = goto(m, bot, heading, current, next)
+        #    current = next
+        #    print(f'going to {current}')
+        #    print()
 
-        # if the street to the right is unkown, check right in scan
-        # otherwise, check left in scan
-        check_right = current.streets[(heading + R)%4] == UNKNOWN
+        if first_iteration:
+            street_info, heading = bot.first_scan()
+            first_iteration = False
+        else:
 
+            # if the street to the right is unkown, check right in scan
+            # otherwise, check left in scan
+            check_right = current.streets[(heading + R)%4] == UNKNOWN
+            street_info, heading = bot.partial_scan(check_right, heading)
 
-        street_info, heading = bot.partial_scan(check_right, heading)
         print(f'street info of {current}: {street_info}')
         print(f'new heading: {heading}')
 

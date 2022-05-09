@@ -17,9 +17,9 @@ B = 2   # backwards
 R = 3   # right
 
 # street existence
-UNKNOWN = 0
+UNKNOWN = -1
 PRESENT = 1
-ABSENT = -1
+ABSENT = 0
 
 class Intersection:
     '''
@@ -119,7 +119,7 @@ class Map:
     add_street(int1, int2): adds street (edge) to map
     shortest_route(src, dest): computes shortest route from src to dest
     '''
-    def __init__(self, intersections: List[Intersection] = []):
+    def __init__(self, intersections: List[Intersection]):
         self.intersections = intersections
 
     def get_intersection(

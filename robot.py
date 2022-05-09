@@ -222,7 +222,7 @@ class EEBot:
         '''
         sign = -1 if spin_right else 1
         self.set_pwm(-sign * 1, sign*1)
-        time.sleep(0.01)
+        time.sleep(0.1)
 
     def turn(self, direction: int):
         '''
@@ -647,3 +647,52 @@ class EEBot:
             assert False
 
         return (streets, new_heading)
+
+    def first_scan(self):
+        '''
+        specifically the first scan of a map building
+        in particular, doesn't require black tape to be 180 degrees away
+        check for adjacent streets at an intersection
+
+        Preconditions
+        -------------
+        Assumes facing north
+
+        Returns
+        -------
+        Tuple[List[int], int]
+            first item is a length 4 list where each element indicates
+            if there is a street at [North, West, South, East].
+            -1 --> Unknown
+            0 --> no street
+            1 --> street exists
+
+            second item is the new heading after scanning
+        '''
+        streets = [UNKNOWN] * 4
+
+        # check forward direction
+        streets[N] = PRESENT if self.detectors_status()[1] else ABSENT
+
+        # set directions based on snap amount
+        turn_amount = self.snap(spin_right=True, pwm=0.7)
+        if turn_amount == 90:
+            streets[E] = PRESENT
+            heading = E
+        elif turn_amount == 180:
+            streets[E] = ABSENT
+            streets[S] = PRESENT
+            heading = S
+        elif turn_amount == 270:
+            streets[E] = ABSENT
+            streets[S] = ABSENT
+            streets[W] = PRESENT
+            heading = W
+        else:
+            streets[E] = ABSENT
+            streets[S] = ABSENT
+            streets[W] = ABSENT
+            heading = N
+
+        return (streets, heading)
+

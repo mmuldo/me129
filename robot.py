@@ -568,12 +568,19 @@ class EEBot:
             self.turn(dir)
             self.follow_tape()
 
-    def partial_scan(self, heading: int) -> Tuple[List[int], int]:
+    def partial_scan(
+        self, 
+        check_right: bool,
+        heading: int
+    ) -> Tuple[List[int], int]:
         '''
         check for adjacent streets at an intersection
 
         Parameters
         ----------
+        spin_right : bool
+            True --> check right street
+            False --> check left street
         heading : int
             initial heading prior to scanning
 
@@ -600,16 +607,17 @@ class EEBot:
         # check forward direction
         streets[F] = PRESENT if self.detectors_status()[1] else ABSENT
 
-        # check right
-        turn_amount = self.snap(spin_right=True, pwm=0.7)
-        streets[R] = PRESENT if turn_amount == 90 else ABSENT
+        # check 90 degree direction
+        direction = R if check_right else L
+        turn_amount = self.snap(spin_right=check_right, pwm=0.7)
+        streets[direction] = PRESENT if turn_amount == 90 else ABSENT
 
         # realign streets based on heading (so that they're [N, W, S, E]
         streets = streets[-heading:] + streets[:-heading]
 
         # readjust heading
         if turn_amount == 90:
-            new_heading = (heading + R) % 4
+            new_heading = (heading + direction) % 4
         elif turn_amount == 180:
             new_heading = (heading + B) % 4
         else:

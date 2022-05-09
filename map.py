@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple, Union
 import robot
+import sys
 
 # Cardinal directions
 N = 0 #north
@@ -53,6 +54,31 @@ class Intersection:
             neighs.append((self.coords[0] + 1, self.coords[1]))
         return neighs
 
+    def direction(self, neighbor: Intersection) -> int:
+        '''
+        computes direction of neighbor in relation to self
+
+        Parameters
+        ----------
+        neighbor : Intersection
+            neighbor intersection
+
+        Returns
+        -------
+        int
+            N, W, S, or E
+        '''
+        diff_to_dir = {
+            (0, 1): N,
+            (-1, 0): W,
+            (0, -1): S,
+            (1, 0): E,
+        }
+        return diff_to_dir[(
+            neighbor.coords[0] - self.coords[0],
+            neighbor.coords[1] - self.coords[1]
+        )]
+
     def __eq__(self, other):
         if isinstance(other, Intersection):
             return self.coords == other.coords
@@ -72,40 +98,6 @@ class Intersection:
     def __str__(self):
         return str(self.coords)
 
-def route_to_directions(
-    route: List[Tuple[int, int]],
-    heading: int
-) -> Tuple[List[int], int]:
-    '''
-    converts a series of Intersections (i.e. coordinate points) to directions
-    to follow
-
-    Parameters
-    ----------
-    route : List[Tuple[int, int]]
-        sequence of Intersections in map to get from one
-        intersection to another
-    heading : int
-        current heading
-
-    Returns
-    -------
-    Tuple[List[int], int]
-        first item is the sequence of directions (F, L, B, R) to follow
-        second item is the new heading after completing directions
-    '''
-    curr_heading = heading
-    dirs = []
-    for j in range(len(route)-1):
-        direction = diff_to_dir[route[j+1]-route[j]]
-        dirs.append(
-            ( direction - curr_heading) % 4
-        )
-        curr_heading = direction
-
-    print([str(i) for i in route])
-    print(dirs)
-    return (dirs, curr_heading)
 
 
 
@@ -201,8 +193,8 @@ class Map:
         dest: Intersection
     ) -> List[Intersection]:
         '''
-        computes shortest sequence of intersections from src to dest
-        uses dijkstra
+        computes shortest sequence of intersections from src to dest.
+        uses dijkstra.
 
         Parameters
         ----------
@@ -216,28 +208,103 @@ class Map:
         List[Intersections]
             the shortest sequence of intersections connecting src to dest
         '''
-        pass
+        def min_dist_intersection(
+            dist: Dict[Intersection, int], 
+            visited: Dict[Intersection, bool]
+        ) -> Intersection:
+            # initialize min distance
+            min = sys.maxsize
+
+            for intersection in self.intersections:
+                if dist[intersection] < min and not visited[intersection]:
+                    min = dist[intersection]
+                    min_intersection = intersection
+            return min_intersection
+
+
+        routes = {
+            intersection: []
+            for intersection in self.intersections
+        }
+
+        dist = {
+            intersection: sys.maxsize
+            for intersection in self.intersections
+        }
+
+        visited = {
+            intersection: False
+            for intersection in self.intersections
+        }
+
+        dist[src] = 0
+        routes[src] = []
+ 
+        while False in visited.values():
+            # Pick the minimum distance intersection from
+            # the set of intersections not yet processed.
+            # x is always equal to src in first iteration
+            x = min_dist_intersection(dist, visited)
+ 
+            # Put the minimum distance intersection in the
+            # shortest path tree
+            visited[x] = True
+ 
+            # Update dist value of neighbors
+            # of the picked intersection only if the current
+            # distance is greater than new distance and
+            # the intersection in not in the shortest path tree
+            for neighbor in self.neighbors(x):
+                if not visited[neighbor] and dist[neighbor] > dist[x] + 1:
+                    dist[neighbor] = dist[x] + 1
+                    routes[neighbor] = routes[x] + [neighbor]
+
+        return routes[dest]
+ 
+
+    
+
 
     def __str__(self):
-        pass
+        '''prints map in adjacency list type format'''
+        s = ''
+        for intersection in self.intersections:
+            neighbor_list = ','.join([
+                str(n) 
+                for n in self.neighbors(intersection)
+            ])
+            s += f'{intersection}: {neighbor_list}\n'
+        return s
 
-def build_map(bot: robot.EEBot, start: Intersection, heading: int):
+def route_to_directions(
+    route: List[Intersection],
+    heading: int
+) -> Tuple[List[int], int]:
     '''
-    contructs a map by having eebot traverse it
+    converts a series of Intersections (i.e. coordinate points) to directions
+    to follow
 
     Parameters
     ----------
-    bot : robot.EEbot
-        our little eebot :)
-    start : Intersection
-        starting intersection
+    route : List[Intersection]
+        sequence of Intersections in map to get from one
+        intersection to another
     heading : int
-        initial heading of eebot
-        NB: needs to be facing 180 degrees away from a street (black tape)
+        current heading
 
     Returns
     -------
-    Map
-        the map
+    Tuple[List[int], int]
+        first item is the sequence of directions (F, L, B, R) to follow
+        second item is the new heading after completing directions
     '''
-    pass
+    curr_heading = heading
+    dirs = []
+    for j in range(len(route)-1):
+        direction = route[j].direction(route[j+1])
+        dirs.append((direction - curr_heading) % 4)
+        curr_heading = direction
+
+    print([str(i) for i in route])
+    print(dirs)
+    return (dirs, curr_heading)

@@ -224,7 +224,31 @@ class EEBot:
         self.set_pwm(-sign * 1, sign*1)
         time.sleep(0.01)
 
-    def turn(self, value: int):
+    def turn(self, direction: int):
+        '''
+        turn in the specified direction
+
+        Parameters
+        ----------
+        value : int
+            0, --> forwards
+            1, --> left
+            2, --> backwards
+            3, --> right
+        '''
+        direction = direction % 4
+
+        if direction == R:
+            self.snap(True, 0.7)
+        elif direction == L:
+            self.snap(False, 0.7)
+        elif direction == B:
+            degree = self.snap(True, 0.7)
+            if degree < 180:
+                self.snap(True, 0.7)
+
+
+    def turn1(self, value: int):
         '''
         turn in the specified direction
 
@@ -562,14 +586,12 @@ class EEBot:
         route : List[int]
             the sequence of turns (forward, left, backward, right) to follow
         '''
-        print("route: ",route)
         for dir in route:
-            print("dir: ", dir)
             self.turn(dir)
-            self.follow_tape()
+            self.next_intersection()
 
     def partial_scan(
-        self, 
+        self,
         check_right: bool,
         heading: int
     ) -> Tuple[List[int], int]:

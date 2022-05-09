@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple, Union
 import robot
 import sys
+import random
 
 # Cardinal directions
 N = 0 #north
@@ -209,11 +210,12 @@ class Map:
             the shortest sequence of intersections connecting src to dest
         '''
         def min_dist_intersection(
-            dist: Dict[Intersection, int], 
+            dist: Dict[Intersection, int],
             visited: Dict[Intersection, bool]
         ) -> Intersection:
             # initialize min distance
             min = sys.maxsize
+            min_intersection = random.choice(self.intersections)
 
             for intersection in self.intersections:
                 if dist[intersection] < min and not visited[intersection]:
@@ -238,18 +240,18 @@ class Map:
         }
 
         dist[src] = 0
-        routes[src] = []
- 
+        routes[src] = [src]
+
         while False in visited.values():
             # Pick the minimum distance intersection from
             # the set of intersections not yet processed.
             # x is always equal to src in first iteration
             x = min_dist_intersection(dist, visited)
- 
+
             # Put the minimum distance intersection in the
             # shortest path tree
             visited[x] = True
- 
+
             # Update dist value of neighbors
             # of the picked intersection only if the current
             # distance is greater than new distance and
@@ -260,10 +262,6 @@ class Map:
                     routes[neighbor] = routes[x] + [neighbor]
 
         return routes[dest]
- 
-
-    
-
 
     def __str__(self):
         '''prints map in adjacency list type format'''
@@ -305,6 +303,4 @@ def route_to_directions(
         dirs.append((direction - curr_heading) % 4)
         curr_heading = direction
 
-    print([str(i) for i in route])
-    print(dirs)
     return (dirs, curr_heading)

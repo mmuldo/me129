@@ -239,13 +239,15 @@ class EEBot:
         direction = direction % 4
 
         if direction == R:
-            self.snap(True, 0.7)
+            assert self.snap(True, 0.7) == 90
         elif direction == L:
-            self.snap(False, 0.7)
+            assert self.snap(False, 0.7) == 90
         elif direction == B:
             degree = self.snap(True, 0.7)
-            if degree < 180:
-                self.snap(True, 0.7)
+            if degree == 90:
+                assert self.snap(True, 0.7) == 90
+            else:
+                assert degree == 180
 
 
     def turn1(self, value: int):

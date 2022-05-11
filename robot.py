@@ -17,6 +17,11 @@ LED_PINS = {
     14: 'left',
 }
 
+# util consts
+SPIN_PWM = 0.7
+LIN_SPEED = 0.35
+NEXT_INT_OVERSHOOT = 0.15/.25 # seconds
+
 # Cardinal directions
 N = 0
 W = 1
@@ -239,13 +244,13 @@ class EEBot:
         direction = direction % 4
 
         if direction == R:
-            assert self.snap(True, 0.75) == 90
+            assert self.snap(True, SPIN_PWM) == 90
         elif direction == L:
-            assert self.snap(False, 0.75) == 90
+            assert self.snap(False, SPIN_PWM) == 90
         elif direction == B:
-            degree = self.snap(True, 0.75)
+            degree = self.snap(True, SPIN_PWM)
             if degree == 90:
-                assert self.snap(True, 0.75) == 90
+                assert self.snap(True, SPIN_PWM) == 90
             else:
                 assert degree == 180
 
@@ -342,6 +347,10 @@ class EEBot:
         int
             degree amount turned, in 90 degree increments
             i.e. returns 90, 180, 270, or 360
+
+        TODO
+        ----
+        still need to check cutoffs
         '''
         spin_sign = -1 if spin_right else 1
         self.spin_kick(spin_right)
@@ -369,13 +378,14 @@ class EEBot:
         # so the the ratio of a spin in right angle increments to the spin
         # of a single LED across the tape is 90/20 = 4.5, 180/20 = 9,
         # 270/20 = 13.5, and 360/20 = 18
-        if ratio < 7:
+        print(ratio)
+        if ratio < 5.9:
             # should be around 4.5 in this case
             return 90
-        elif 7 <= ratio < 11:
+        elif 5.9 <= ratio < 10.5:
             # should be around 9 in this case
             return 180
-        elif 11 <= ratio < 16:
+        elif 10.5 <= ratio < 14.1:
             # should be around 13.5 in this case
             return 270
         else:
@@ -494,7 +504,7 @@ class EEBot:
 
             if not left and middle and not right:
                 # keep going straight
-                self.set(0.25, 0)
+                self.set(LIN_SPEED, 0)
                 count = 0
             elif not left and right:
                 # veer right
@@ -508,7 +518,8 @@ class EEBot:
                 # reached intersection
                 # drive forward a little so wheels are over intersection
                 self.set(0.25, 0)
-                time.sleep(.163/0.25) # need to travel ~0.153 meters
+                # need to travel ~0.153 meters
+                time.sleep(NEXT_INT_OVERSHOOT)
 
                 # stop
                 self.set_pwm(0,0)
@@ -521,7 +532,7 @@ class EEBot:
                 # off map
                 # stop
                 if count < 50:
-                    self.set(0.25, 0)
+                    self.set(LIN_SPEED, 0)
                     count += 1
                 else:
                     print('off the map')
@@ -632,6 +643,9 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
+        # wait a beat to make it clear we're scanning
+        time.sleep(0.5)
+
         streets = [UNKNOWN] * 4
         # assume there is black tape directly behind (since we just came
         # from there)
@@ -642,7 +656,7 @@ class EEBot:
 
         # check 90 degree direction
         direction = R if check_right else L
-        turn_amount = self.snap(spin_right=check_right, pwm=0.75)
+        turn_amount = self.snap(spin_right=check_right, pwm=SPIN_PWM)
         streets[direction] = PRESENT if turn_amount == 90 else ABSENT
 
         # realign streets based on heading (so that they're [N, W, S, E]
@@ -657,6 +671,8 @@ class EEBot:
             # turn_amount should be 90 or 180
             assert False
 
+        # wait a beat to make it clear we're scanning
+        time.sleep(0.5)
         return (streets, new_heading)
 
     def first_scan(self):
@@ -686,7 +702,7 @@ class EEBot:
         streets[N] = PRESENT if any(self.detectors_status()) else ABSENT
 
         # set directions based on snap amount
-        turn_amount = self.snap(spin_right=True, pwm=0.75)
+        turn_amount = self.snap(spin_right=True, pwm=SPIN_PWM)
         if turn_amount == 90:
             streets[E] = PRESENT
             heading = E
@@ -706,4 +722,3 @@ class EEBot:
             heading = N
 
         return (streets, heading)
-

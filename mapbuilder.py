@@ -1,5 +1,6 @@
 from typing import Tuple
 import robot
+import time
 from map import Intersection, Map, route_to_directions
 
 # existence of streets
@@ -55,9 +56,79 @@ def goto(
     bot.follow_directions(directions)
     return heading
 
-def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int]):
+def return_to_origin(
+    m: Map,
+    bot: robot.EEBot,
+    heading: int,
+    start: Intersection
+) -> int:
+    '''
+    sends eebot from start back to origin
+
+    Parameters
+    ----------
+    m : Map
+        map eebot is traversing
+    bot : robot.EEbot
+        the bot :)
+    heading : int
+        initial heading of eebot
+    start : Intersection
+        (long, lat) starting point
+
+    Returns
+    -------
+    int
+        new heading
+    '''
+    origin = m.get_intersection((0,0))
+    return goto(m, bot, heading, start, origin)
+
+
+def dance(
+    bot: robot.EEBot,
+    heading: int
+) -> int:
+    '''
+    dance for me EEBot :)
+
+    Parameters
+    ----------
+    bot : robot.EEbot
+        the bot :)
+    heading : int
+        initial heading of eebot
+
+    Returns
+    -------
+    int
+        new heading
+    '''
+    # face north
+    bot.turn((N - heading)%4)
+
+    time.sleep(0.2)
+    for LR in [False, True, True, False]:
+        bot.spin_kick(LR)
+        bot.set_pwm(0, 0)
+        time.sleep(0.2)
+
+    total_spin = 360
+    while total_spin:
+        total_spin -= bot.snap(False, 0.8)
+        assert total_spin >= 0
+
+    # facing north at end
+    return N
+
+def build_map(
+    bot: robot.EEBot,
+    heading: int,
+    start: Tuple[int,int]
+) -> Tuple[Map, int]:
     '''
     contructs a map by having eebot traverse it
+    returns to origin once done
 
     Parameters
     ----------
@@ -71,8 +142,8 @@ def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int]):
 
     Returns
     -------
-    Map
-        the map
+    (Map, int)
+        the map and the resulting heading after process is completed
     '''
     current = Intersection(start)
     m = Map([current])
@@ -155,4 +226,6 @@ def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int]):
         print()
         print()
         print()
-    return m
+    heading = return_to_origin(m, bot, heading, current)
+    heading = dance(bot, heading)
+    return (m, heading)

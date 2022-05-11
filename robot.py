@@ -239,13 +239,13 @@ class EEBot:
         direction = direction % 4
 
         if direction == R:
-            assert self.snap(True, 0.7) == 90
+            assert self.snap(True, 0.75) == 90
         elif direction == L:
-            assert self.snap(False, 0.7) == 90
+            assert self.snap(False, 0.75) == 90
         elif direction == B:
-            degree = self.snap(True, 0.7)
+            degree = self.snap(True, 0.75)
             if degree == 90:
-                assert self.snap(True, 0.7) == 90
+                assert self.snap(True, 0.75) == 90
             else:
                 assert degree == 180
 
@@ -488,23 +488,27 @@ class EEBot:
             True --> successfully reached an intersection
             False --> got off the map somehow (fail)
         '''
+        count = 0
         while True:
             left, middle, right = self.detectors_status()
 
             if not left and middle and not right:
                 # keep going straight
                 self.set(0.25, 0)
+                count = 0
             elif not left and right:
                 # veer right
                 self.set(0.25, -90)
+                count = 0
             elif left and not right:
                 # veer left
                 self.set(0.25, 90)
+                count = 0
             elif left and middle and right:
                 # reached intersection
                 # drive forward a little so wheels are over intersection
                 self.set(0.25, 0)
-                time.sleep(.153/0.25) # need to travel ~0.153 meters
+                time.sleep(.163/0.25) # need to travel ~0.153 meters
 
                 # stop
                 self.set_pwm(0,0)
@@ -516,8 +520,13 @@ class EEBot:
             elif not left and not middle and not right:
                 # off map
                 # stop
-                self.set_pwm(0,0)
-                return False
+                if count < 50:
+                    self.set(0.25, 0)
+                    count += 1
+                else:
+                    print('off the map')
+                    self.set_pwm(0,0)
+                    return False
             else:
                 # shouldn't hit this because we exhausted all valid cases
                 # only non valid case is
@@ -629,11 +638,11 @@ class EEBot:
         streets[B] = PRESENT
 
         # check forward direction
-        streets[F] = PRESENT if self.detectors_status()[1] else ABSENT
+        streets[F] = PRESENT if any(self.detectors_status()) else ABSENT
 
         # check 90 degree direction
         direction = R if check_right else L
-        turn_amount = self.snap(spin_right=check_right, pwm=0.7)
+        turn_amount = self.snap(spin_right=check_right, pwm=0.75)
         streets[direction] = PRESENT if turn_amount == 90 else ABSENT
 
         # realign streets based on heading (so that they're [N, W, S, E]
@@ -674,10 +683,10 @@ class EEBot:
         streets = [UNKNOWN] * 4
 
         # check forward direction
-        streets[N] = PRESENT if self.detectors_status()[1] else ABSENT
+        streets[N] = PRESENT if any(self.detectors_status()) else ABSENT
 
         # set directions based on snap amount
-        turn_amount = self.snap(spin_right=True, pwm=0.7)
+        turn_amount = self.snap(spin_right=True, pwm=0.75)
         if turn_amount == 90:
             streets[E] = PRESENT
             heading = E

@@ -102,8 +102,9 @@ def build_map(bot: robot.EEBot, heading: int, start: Tuple[int,int]):
         if first_iteration:
             street_info, heading = bot.first_scan()
             first_iteration = False
+            print('first iteration')
         else:
-
+            print('in else')
             # if the street to the right is unkown, check right in scan
             # otherwise, check left in scan
             check_right = current.streets[(heading + R)%4] == UNKNOWN

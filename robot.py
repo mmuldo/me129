@@ -372,6 +372,9 @@ class EEBot:
             if time.perf_counter() - start > 20:
                 # shouldn't ever hit this, but just in case
                 break
+        print(f't1: {t1}')
+        print(f't2: {t2}')
+        print(f't2-t1: {t2-t1}')
         self.set_pwm(0,0)
 
         # in theory, the width of the tape corresponds to around 20 degrees,

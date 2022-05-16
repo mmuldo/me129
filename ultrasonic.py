@@ -15,11 +15,16 @@ class Ultrasonic:
         'ready' -> ready to send trigger
         'await_rise' -> waiting for echo, rising edge
         'await_fall' -> waiting for echo, falling edge
-    distance : int
-        how far an object is detected from the robot
-    start_time : int
-        a counter, starting from when a trigger is sent
+    distance : List[int]
+        list of distances recorded for each sensor
+    start_time : List[int]
+        list of time at which trigger is sent, for each sensor
+	cbrise : List[]
+	  list of rising callback functions
+	cbfall : List[]
+	  list of falling callback functions
     '''
+
     
     def __init__(self):
         self.state = ['ready', 'ready', 'ready']
@@ -45,6 +50,10 @@ class Ultrasonic:
 
     #we can ignore level
     def rising_0(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 0, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
         if self.state[0] == 'await_rise':
             #start the timer
             self.start_time[0] = tick
@@ -52,6 +61,10 @@ class Ultrasonic:
 
                 
     def falling_0(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 0. Sets state to 'ready'.
+        '''
         if self.state[0] == 'await_fall':
             end_time = tick
             delta_t = end_time - self.start_time[0]
@@ -62,6 +75,10 @@ class Ultrasonic:
 
 #we can ignore level
     def rising_1(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 1, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
         if self.state[1] == 'await_rise':
             #start the timer
             self.start_time[1] = tick
@@ -69,6 +86,10 @@ class Ultrasonic:
 
                 
     def falling_1(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 1. Sets state to 'ready'.
+        '''
         if self.state[1] == 'await_fall':
             end_time = tick
             delta_t = end_time - self.start_time[1]
@@ -79,6 +100,10 @@ class Ultrasonic:
 
 #we can ignore level
     def rising_2(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 2, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
         if self.state[2] == 'await_rise':
             #start the timer
             self.start_time[2] = tick
@@ -86,6 +111,10 @@ class Ultrasonic:
 
                 
     def falling_2(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 2. Sets state to 'ready'.
+        '''
         if self.state[2] == 'await_fall':
             end_time = tick
             delta_t = end_time - self.start_time[2]
@@ -97,7 +126,7 @@ class Ultrasonic:
 
     def trigger(self):
         '''
-        sends a trigger and sets state to 'await_rise'
+        Sends a trigger and sets state to 'await_rise'
         '''
         counter = -1
         for echo, trig in ECHO_TRIGGER:
@@ -115,6 +144,9 @@ class Ultrasonic:
                 
 
     def shutdown_ultrasonic(self):
+        '''
+        Cancels callback functions for each sensor.
+        '''
         for i in range(3):
             self.cbrise[i].cancel()
             self.cbfall[i].cancel()

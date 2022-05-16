@@ -6,6 +6,8 @@ import mapbuilder
 import json
 import util
 import ultrasonic
+import random
+import threading 
 
 control = robot.EEBot()
 ultra = ultrasonic.Ultrasonic()
@@ -16,7 +18,20 @@ S = 2
 E = 3
 map_l2 = {}
 
+def stopcontinual():
+    stopflag = True
+def runcontinual():
+    stopflag = False
+    while not stopflag:
+        ultra.trigger()
+        time.sleep(0.8 + 0.4 * random.random())
+        
+
 if __name__ == "__main__":
+    #start ultrasonic threading
+    thread = threading.Thread(target=runcontinual)
+    thread.start()  
+
     try:
         #create the map
 #         map_l2 = mapbuilder.build_map(control,N,(0,0))
@@ -31,12 +46,13 @@ if __name__ == "__main__":
         # loaded_map = json.loads(data)
         # #print(util.dict_to_map(loaded_map))
 
-        #activate the ultrasonic
-        ultra.trigger()
+        time.sleep(1.5)      
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 
     control.shutdown()
     ultra.shutdown_ultrasonic()
-    
+    stopcontinual()
+    thread.join()
+
 

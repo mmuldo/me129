@@ -5,9 +5,10 @@ import map
 import mapbuilder
 import json
 import util
+import ultrasonic
 
 control = robot.EEBot()
-
+ultra = ultrasonic.Ultrasonic()
 
 N = 0
 W = 1
@@ -24,14 +25,18 @@ if __name__ == "__main__":
 #             file.write(json_str)
 #         #print(map_l2)
 
-        #load the map
-        with open('map_l2.json', 'r') as file:
-            data = file.read()
-        loaded_map = json.loads(data)
-        #print(util.dict_to_map(loaded_map))
+        # #load the map
+        # with open('map_l2.json', 'r') as file:
+        #     data = file.read()
+        # loaded_map = json.loads(data)
+        # #print(util.dict_to_map(loaded_map))
+
+        #activate the ultrasonic
+        ultra.trigger()
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 
     control.shutdown()
+    ultra.shutdown_ultrasonic()
     
 

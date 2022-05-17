@@ -95,7 +95,7 @@ class Ultrasonic:
             delta_t = end_time - self.start_time[1]
             dist = 343/2 * delta_t * 1e-6
             self.distance[1] = dist
-            print(self.distance[1], '1')
+            # print(self.distance[1], '1')
             self.state[1] = 'ready' 
 
 #we can ignore level

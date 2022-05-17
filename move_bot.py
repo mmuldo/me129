@@ -39,22 +39,29 @@ def runcontinual(stop):
         k = .5
         # if the robot is 30cm away, stop
         if ultra.distance[1] <= desired_distance:
-            direction['stop'] = False
+            direction['stop'] = True
+            direction['left'] = False
+            direction['right'] = False
+            direction['u'] = 0
+            print('stop')
         elif ultra.distance[0] <= desired_distance:
             direction['left'] = True
             e = desired_distance - ultra.distance[0]
-            direction['u'] = k*e
+            direction['u'] = -k*e
+            print('left')
         elif ultra.distance[2] <= desired_distance:
             direction['right'] = True
             e = ultra.distance[2] - desired_distance
-            direction['u'] = k*e
+            direction['u'] = -k*e
+            print('right')
         else:
             direction['stop'] = False
             direction['left'] = False
             direction['right'] = False
+            direction['u'] = 0
 
-        
-        time.sleep(0.8 + 0.4 * random.random())
+
+        time.sleep(.4 + 0.4 * random.random())
         
 
 if __name__ == "__main__":
@@ -79,19 +86,16 @@ if __name__ == "__main__":
 
        #u positive is left, negative is right
         while(1):
+            print(direction['u'])
             if direction['stop']:
                 control.set_pwm(0,0)
-            elif direction['left']:
-                u = direction['u']
-                PWM_left = max(0.5, min(0.9, 0.7 - u))
-                PWM_right = max(0.5, min(0.9, 0.7 + u))
-                control.set_pwm(PWM_left,PWM_right)
-            elif direction['right']:
+            elif direction['left'] or direction['right']:
                 u = direction['u']
                 PWM_left = max(0.5, min(0.9, 0.7 - u))
                 PWM_right = max(0.5, min(0.9, 0.7 + u))
                 control.set_pwm(PWM_left,PWM_right)
             else:
+                #control.set_pwm(0,0)  
                 control.set_pwm(.7,.7)     
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))

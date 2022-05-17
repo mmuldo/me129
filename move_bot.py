@@ -17,7 +17,16 @@ W = 1
 S = 2
 E = 3
 map_l2 = {}
-stop = [False]
+
+direction = {}
+direction['left'] = False
+direction['right'] = False
+direction['stop'] = False
+direction['u'] = 0
+
+desired_distance = .3
+
+
 
 def stopcontinual():
     stopflag = True
@@ -25,17 +34,32 @@ def runcontinual(stop):
     stopflag = False
     while not stopflag:
         ultra.trigger()
-        # if the robot is 20cm away, stop
-        if ultra.distance[1] <= .2:
-            stop[0] = True
+
+        e = 0
+        k = .5
+        # if the robot is 30cm away, stop
+        if ultra.distance[1] <= desired_distance:
+            direction['stop'] = False
+        elif ultra.distance[0] <= desired_distance:
+            direction['left'] = True
+            e = desired_distance - ultra.distance[0]
+            direction['u'] = k*e
+        elif ultra.distance[2] <= desired_distance:
+            direction['right'] = True
+            e = ultra.distance[2] - desired_distance
+            direction['u'] = k*e
         else:
-            stop[0] = False
+            direction['stop'] = False
+            direction['left'] = False
+            direction['right'] = False
+
+        
         time.sleep(0.8 + 0.4 * random.random())
         
 
 if __name__ == "__main__":
     #start ultrasonic threading
-    thread = threading.Thread(target=runcontinual,args=(stop,))
+    thread = threading.Thread(target=runcontinual,args=(direction,))
     thread.start()  
 
     try:
@@ -51,12 +75,24 @@ if __name__ == "__main__":
         #     data = file.read()
         # loaded_map = json.loads(data)
         # #print(util.dict_to_map(loaded_map))
+
+
+       #u positive is left, negative is right
         while(1):
-            print(stop[0])
-            if stop[0]:
+            if direction['stop']:
                 control.set_pwm(0,0)
+            elif direction['left']:
+                u = direction['u']
+                PWM_left = max(0.5, min(0.9, 0.7 - u))
+                PWM_right = max(0.5, min(0.9, 0.7 + u))
+                control.set_pwm(PWM_left,PWM_right)
+            elif direction['right']:
+                u = direction['u']
+                PWM_left = max(0.5, min(0.9, 0.7 - u))
+                PWM_right = max(0.5, min(0.9, 0.7 + u))
+                control.set_pwm(PWM_left,PWM_right)
             else:
-                control.set_pwm(.6,.6)     
+                control.set_pwm(.7,.7)     
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 

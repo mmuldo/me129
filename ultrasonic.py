@@ -11,7 +11,7 @@ class Ultrasonic:
     
     Attributes
     ----------
-    state : str
+    state : List[str]
         'ready' -> ready to send trigger
         'await_rise' -> waiting for echo, rising edge
         'await_fall' -> waiting for echo, falling edge
@@ -70,7 +70,7 @@ class Ultrasonic:
             delta_t = end_time - self.start_time[0]
             dist = 343/2 * delta_t * 1e-6
             self.distance[0] = dist
-            print(self.distance[0], '0')
+            #print(self.distance[0], '0')
             self.state[0] = 'ready' 
 
 #we can ignore level
@@ -120,7 +120,7 @@ class Ultrasonic:
             delta_t = end_time - self.start_time[2]
             dist = 343/2 * delta_t * 1e-6
             self.distance[2] = dist
-            print(self.distance[2], '2')
+            # print(self.distance[2], '2')
             self.state[2] = 'ready' 
 
 

@@ -17,19 +17,25 @@ W = 1
 S = 2
 E = 3
 map_l2 = {}
+stop = [False]
 
 def stopcontinual():
     stopflag = True
-def runcontinual():
+def runcontinual(stop):
     stopflag = False
     while not stopflag:
         ultra.trigger()
+        # if the robot is 20cm away, stop
+        if ultra.distance[1] <= .2:
+            stop[0] = True
+        else:
+            stop[0] = False
         time.sleep(0.8 + 0.4 * random.random())
         
 
 if __name__ == "__main__":
     #start ultrasonic threading
-    thread = threading.Thread(target=runcontinual)
+    thread = threading.Thread(target=runcontinual,args=(stop,))
     thread.start()  
 
     try:
@@ -45,8 +51,12 @@ if __name__ == "__main__":
         #     data = file.read()
         # loaded_map = json.loads(data)
         # #print(util.dict_to_map(loaded_map))
-
-        time.sleep(1.5)      
+        while(1):
+            print(stop[0])
+            if stop[0]:
+                control.set_pwm(0,0)
+            else:
+                control.set_pwm(.6,.6)     
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
 
@@ -54,5 +64,3 @@ if __name__ == "__main__":
     ultra.shutdown_ultrasonic()
     stopcontinual()
     thread.join()
-
-

@@ -64,6 +64,8 @@ class Ultrasonic:
             #start the timer
             self.start_time[0] = tick
             self.state[0] = 'await_fall'
+        else:
+            raise Exception('illegal rise 0')
 
                 
     def falling_0(self, gpio, level, tick):
@@ -78,6 +80,8 @@ class Ultrasonic:
             self.distance[0] = dist
             #print(self.distance[0], '0')
             self.state[0] = 'ready' 
+        else:
+            raise Exception('illegal fall 0')
 
 #we can ignore level
     def rising_1(self, gpio, level, tick):
@@ -89,6 +93,8 @@ class Ultrasonic:
             #start the timer
             self.start_time[1] = tick
             self.state[1] = 'await_fall'
+        else:
+            raise Exception('illegal rise 1')
 
                 
     def falling_1(self, gpio, level, tick):
@@ -103,6 +109,8 @@ class Ultrasonic:
             self.distance[1] = dist
             # print(self.distance[1], '1')
             self.state[1] = 'ready' 
+        else:
+            raise Exception('illegal fall 1')
 
 #we can ignore level
     def rising_2(self, gpio, level, tick):
@@ -114,6 +122,8 @@ class Ultrasonic:
             #start the timer
             self.start_time[2] = tick
             self.state[2] = 'await_fall'
+        else:
+            raise Exception('illegal rise 2')
 
                 
     def falling_2(self, gpio, level, tick):
@@ -128,6 +138,8 @@ class Ultrasonic:
             self.distance[2] = dist
             # print(self.distance[2], '2')
             self.state[2] = 'ready' 
+        else:
+            raise Exception('illegal fall 2')
 
 
     def trigger(self):
@@ -146,7 +158,9 @@ class Ultrasonic:
                 self.io.write(trig, 0)
                 # Update state to await rising
                 self.state[counter] = 'await_rise'
-        time.sleep(.1)
+            else:
+                raise Exception(f'illegal trigger {counter}')
+        #  time.sleep(.1)
 
 
     def shutdown_ultrasonic(self):

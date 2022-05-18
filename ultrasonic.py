@@ -23,6 +23,11 @@ class Ultrasonic:
 	  list of rising callback functions
 	cbfall : List[]
 	  list of falling callback functions
+    herd_directions : List[str]
+        directions to turn
+        'turn_right'
+        'turn_left'
+        'stay_straight'
     '''
 
     
@@ -33,6 +38,7 @@ class Ultrasonic:
         self.cbrise = []
         self.cbfall = []
         self.io = pigpio.pi()
+        self.herd_directions = ['straight', 'straight', 'straight']
         
         for echo, trig in ECHO_TRIGGER:
             # Set up the two pins as output/input.
@@ -141,7 +147,7 @@ class Ultrasonic:
                 # Update state to await rising
                 self.state[counter] = 'await_rise'
         time.sleep(.1)
-                
+
 
     def shutdown_ultrasonic(self):
         '''

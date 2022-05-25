@@ -24,6 +24,7 @@ map_l2 = {}
 
 stopflag = False
 stop_ultra = False
+change_route = [False]
 
 def stopcontinual():
     global stopflag
@@ -46,15 +47,16 @@ def runUltra():
     adjustments = adjust_course.Adjust()
     while not stop_ultra:
         time.sleep(0.01)
-        adjustments.emergency(control, ultra)
+        adjustments.emergency(control, ultra, change_route)
        
 
 if __name__ == "__main__":
     #start ultrasonic threading
     thread = threading.Thread(target=runcontinual,name='runcontinual')
     thread.start()
-    # threadUltra = threading.Thread(target=runUltra,name='ultrasonic')
-    # threadUltra.start()
+    time.sleep(.5)
+    threadUltra = threading.Thread(target=runUltra,name='ultrasonic')
+    threadUltra.start()
 
     # try:
         #create the map
@@ -64,21 +66,19 @@ if __name__ == "__main__":
 #             file.write(json_str)
 #         #print(map_l2)
     #load the map
+    
     loaded_map = util.load_map('map_l2.json')
-    mapbuilder.wrapped_goto(loaded_map, control, N, (0,0), (1,1))
+    mapbuilder.wrapped_goto(loaded_map, control, change_route, N, (0,0), (1,1))
 
        # get the bot moving initially
-       
-            
-            
     #except BaseException as ex:
     #    print("Ending due to exception: %s" % repr(ex))
 
-    ultra.shutdown_ultrasonic() 
+    ultra.shutdown_ultrasonic()
     control.set_pwm(0,0)
     control.shutdown()
     stopcontinual()
     thread.join()
-    # stopUltra()
-    # threadUltra.join()
+    stopUltra()
+    threadUltra.join()
 

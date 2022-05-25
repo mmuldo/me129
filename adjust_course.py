@@ -2,19 +2,22 @@ import robot
 import ultrasonic
 
 
-desired_distance = 0.3
+desired_distance = 0.2
 
 class Adjust:
     def __init__(self):
         pass
-    def emergency(self, control, ultra):
+    def emergency(self, control, ultra, change_route):
         # e = 0
         # k = .3
         # u = 0
         # if the robot is at desired distance, stop
+        
         if ultra.distance[1] <= desired_distance:
+            print('change')
             #control.set_pwm(0,0)
-            print('stop')
+            change_route[0] = True
+            
         # if the robot is within the desired distance on the right,
         # turn left
         # elif ultra.distance[2] <= desired_distance:

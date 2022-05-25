@@ -23,6 +23,7 @@ R = 3
 def goto(
     m: Map,
     bot: robot.EEBot,
+    change_route,
     heading: int,
     start: Intersection,
     dest: Intersection
@@ -48,17 +49,21 @@ def goto(
     int
         new heading
     '''
+    # update robot's heading
+    bot.heading = heading
+
     route = m.shortest_route(start, dest)
-    print(f'route: {[str(i) for i in route]}')
     directions, heading = route_to_directions(route, heading)
-    print(f'directions: {directions}')
-    print(f'heading: {heading}')
-    bot.follow_directions(directions)
+    bot.follow_directions(directions, change_route)
+
+    # update robot's heading
+    bot.heading = heading
     return heading
 
 def wrapped_goto(
     m: Map,
     bot: robot.EEBot,
+    change_route,
     heading: int,
     start: Tuple[int, int],
     dest: Tuple[int, int]
@@ -90,6 +95,7 @@ def wrapped_goto(
     return goto(
         m,
         bot,
+        change_route,
         heading,
         s,
         d
@@ -121,7 +127,7 @@ def return_to_origin(
         new heading
     '''
     origin = m.get_intersection((0,0))
-    return goto(m, bot, heading, start, origin)
+    return goto(m, bot, [False], heading, start, origin)
 
 
 def dance(
@@ -193,21 +199,11 @@ def build_map(
         # next intersection to explore is at the top of the come_back queue
         next = come_back[0]
         print(f'next is {next}')
-        heading = goto(m, bot, heading, current, next)
+        heading = goto(m, bot, [False], heading, current, next)
         current = next
 
         print(f'current intersection: {current}')
         print(f'current streets: {current.streets}')
-
-        #if UNKNOWN not in current.streets:
-        #    print('already known')
-        #    # know everything about this intersection already
-        #    # so got to an unknown intersection
-        #    next = come_back[0]
-        #    heading = goto(m, bot, heading, current, next)
-        #    current = next
-        #    print(f'going to {current}')
-        #    print()
 
         if first_iteration:
             street_info, heading = bot.first_scan()

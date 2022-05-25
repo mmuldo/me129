@@ -20,7 +20,7 @@ LED_PINS = {
 # util consts
 SPIN_PWM = 0.7
 LIN_SPEED = 0.35
-NEXT_INT_OVERSHOOT = 0.15/.25 # seconds
+NEXT_INT_OVERSHOOT = 0.14/.25 # seconds
 
 # Cardinal directions
 N = 0
@@ -78,6 +78,8 @@ class EEBot:
     ----------
     io : pigpio.pi
         pi I/O instance with which we can interact with our little eebot
+    heading : int
+        current heading of the robot
     motors: List[int]
         GPIO pins that the motor leads are connected to;
         looking at the bot from the back, the pin connections in order
@@ -101,8 +103,7 @@ class EEBot:
 
     def __init__(
         self,
-        passed_io,
-        
+        passed_io: pigpio.pi,
         L: float = 0.103,
         d: float = 0.131
     ):
@@ -120,6 +121,7 @@ class EEBot:
         self.LED_detectors = list(LED_PINS.keys())
         self.L = L
         self.d = d
+        self.heading = N # initialize the current heading to North.
 
         self.io = passed_io
         if not self.io.connected:
@@ -256,33 +258,6 @@ class EEBot:
                 assert degree == 180
 
 
-    def turn1(self, value: int):
-        '''
-        turn in the specified direction
-
-        Parameters
-        ----------
-        value : int
-            0, 4 --> forwards
-            1, -3 --> left
-            2, -2 --> backwards
-            3, -1 --> right
-        '''
-        turn = None
-        #left turn
-        if (value == 1 or value == -3):
-            self.left_inplace()
-        #180 turn
-        elif (value == 2 or value == -2):
-            self.backwards_inplace()
-        #right turn
-        elif (value == 3 or value == -1):
-            self.right_inplace()
-        #else no turn
-        else:
-            return
-
-
     def find_line(self, spin_right: bool, wait_time: float) -> bool:
         '''
         spin until a line is found
@@ -385,12 +360,15 @@ class EEBot:
         print(ratio)
         if ratio < 5.9:
             # should be around 4.5 in this case
+            self.heading = (self.heading + spin_sign*1) % 4
             return 90
         elif 5.9 <= ratio < 10.5:
             # should be around 9 in this case
+            self.heading = (self.heading + spin_sign*2) % 4
             return 180
         elif 10.5 <= ratio < 14.1:
             # should be around 13.5 in this case
+            self.heading = (self.heading + spin_sign*3) % 4
             return 270
         else:
             return 360
@@ -398,75 +376,6 @@ class EEBot:
         # shouldn't reach this point
         assert False
 
-    def left_inplace(self):
-        '''turn 90 degrees to the left in place'''
-        self.set_pwm(-0.7, 0.7)
-        time.sleep(0.90)
-
-    def right_inplace(self):
-        '''turn 90 degrees to the right in place'''
-        self.set_pwm(0.7, -0.7)
-        time.sleep(0.9)
-
-    def backwards_inplace(self):
-        '''turn 180 degrees to the left in place'''
-        self.set_pwm(-0.7, 0.7)
-        time.sleep(2*0.86)
-
-    def check_intersection(self, heading: int) -> Tuple[List[bool], int]:
-        '''
-        check for adjacent streets at an intersection
-
-        Parameters
-        ----------
-        heading : int
-            current heading
-
-        Returns
-        -------
-        Tuple[List[bool], int]
-            first item is a length 4 list where each element indicates 
-            if there is a street at [North, West, South, East].
-            second item is the new heading after scanning
-
-        Returns
-        -------
-        TODO
-        ----
-        assess if we should use this or scan()
-        '''
-        pins = self.LED_detectors
-        #forward, left, backward, right
-        streets = [False, False, True, False]
-        #go forward a bit
-        for i in range(2000):
-            self.set_pwm(.7,.7)
-
-        #check forward
-        lmr = [self.io.read(pin) for pin in pins]
-        if sum(lmr) > 0:
-            streets[0] = True
-            
-        #check left
-        self.left_inplace()
-        lmr = [self.io.read(pin) for pin in pins]
-        if sum(lmr) > 0:
-            streets[1] = True
-            
-        #check right
-        self.backwards_inplace()
-        lmr = [self.io.read(pin) for pin in pins]
-        if sum(lmr) > 0:
-            streets[3] = True
-            
-        #recenter
-        self.left_inplace()
-        
-        # realign streets based on heading (so that they're [N, W, S, E]
-        streets = streets[-heading:] + streets[:-heading]
-        print(streets)
-        return (streets, heading)
-        
 
     def adjust(self):
         '''
@@ -487,7 +396,7 @@ class EEBot:
 
         self.set_pwm(0,0)
 
-    def next_intersection(self) -> bool:
+    def next_intersection(self, change_route) -> bool:
         '''
         sends eebot to next intersection
 
@@ -505,7 +414,9 @@ class EEBot:
         count = 0
         while True:
             left, middle, right = self.detectors_status()
-
+            if change_route[0] == True:
+                break
+                
             if not left and middle and not right:
                 # keep going straight
                 self.set(LIN_SPEED, 0)
@@ -602,7 +513,7 @@ class EEBot:
                 self.set(.3, 30 - counter)
                 counter += .0005
 
-    def follow_directions(self, route):
+    def follow_directions(self, route, change_route):
         '''
         follow a sequence of turns like so:
             turn1 --> drive straight --> turn2 --> drive straight --> ...
@@ -612,9 +523,21 @@ class EEBot:
         route : List[int]
             the sequence of turns (forward, left, backward, right) to follow
         '''
+        prev_route = []
         for dir in route:
+            prev_route.append(dir)
+            print('continue')
+            if change_route[0] == True:
+                
+                change_route[0] = False
+                print('we change')
+                prev_route.reverse()
+                for new_dir in prev_route:
+                    self.turn(new_dir)
+                    self.next_intersection(change_route)
+                break
             self.turn(dir)
-            self.next_intersection()
+            self.next_intersection(change_route)
 
     def partial_scan(
         self,
@@ -647,6 +570,9 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
+        # update robot's current heading
+        self.heading = heading
+
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
 
@@ -677,6 +603,7 @@ class EEBot:
 
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
+        self.heading = new_heading
         return (streets, new_heading)
 
     def first_scan(self):
@@ -700,6 +627,9 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
+        # update robot's heading
+        self.heading = N
+
         streets = [UNKNOWN] * 4
 
         # check forward direction
@@ -725,4 +655,5 @@ class EEBot:
             streets[W] = ABSENT
             heading = N
 
+        self.heading = heading
         return (streets, heading)

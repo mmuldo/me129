@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Tuple
 from functools import reduce
+ECHO_TRIGGER = [(13,16), (20,19), (21,26)]
 
 # first element is the left motor; second is the right.
 # first element of each tuple is the negative terminal; second is positive
@@ -105,7 +106,8 @@ class EEBot:
         self,
         passed_io: pigpio.pi,
         L: float = 0.103,
-        d: float = 0.131
+        d: float = 0.131,
+        
     ):
         '''initializes eebot
 
@@ -122,8 +124,28 @@ class EEBot:
         self.L = L
         self.d = d
         self.heading = N # initialize the current heading to North.
-
         self.io = passed_io
+        self.state = ['ready', 'ready', 'ready']
+        self.distance = [0, 0, 0]
+        self.start_time = [0, 0, 0]
+        self.cbrise = []
+        self.cbfall = []
+
+        for echo, trig in ECHO_TRIGGER:
+            # Set up the two pins as output/input.
+            self.io.set_mode(trig, pigpio.OUTPUT)
+            self.io.set_mode(echo, pigpio.INPUT)
+        # Set up the interrupt handlers or callbacks.
+        self.cbrise.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.RISING_EDGE, self.rising_0))
+        self.cbfall.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.FALLING_EDGE, self.falling_0))
+        
+        self.cbrise.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.RISING_EDGE, self.rising_1))
+        self.cbfall.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.FALLING_EDGE, self.falling_1))
+        
+        self.cbrise.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.RISING_EDGE, self.rising_2))
+        self.cbfall.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.FALLING_EDGE, self.falling_2))
+
+
         if not self.io.connected:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
@@ -146,6 +168,121 @@ class EEBot:
         for pin in self.LED_detectors:
             # setup four LED pins as input
             self.io.set_mode(pin, pigpio.INPUT)
+
+    #we can ignore level
+    def rising_0(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 0, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
+        if self.state[0] == 'await_rise':
+            #start the timer
+            self.start_time[0] = tick
+            self.state[0] = 'await_fall'
+        # else:
+        #     raise Exception('illegal rise 0')
+
+                
+    def falling_0(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 0. Sets state to 'ready'.
+        '''
+        if self.state[0] == 'await_fall':
+            end_time = tick
+            delta_t = end_time - self.start_time[0]
+            dist = 343/2 * delta_t * 1e-6
+            self.distance[0] = dist
+            self.state[0] = 'ready' 
+        # else:
+        #     raise Exception('illegal fall 0')
+
+#we can ignore level
+    def rising_1(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 1, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
+        if self.state[1] == 'await_rise':
+            #start the timer
+            self.start_time[1] = tick
+            self.state[1] = 'await_fall'
+        # else:
+        #     raise Exception('illegal rise 1')
+
+                
+    def falling_1(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 1. Sets state to 'ready'.
+        '''
+        if self.state[1] == 'await_fall':
+            end_time = tick
+            delta_t = end_time - self.start_time[1]
+            dist = 343/2 * delta_t * 1e-6
+            self.distance[1] = dist
+            self.state[1] = 'ready' 
+        # else:
+        #     raise Exception('illegal fall 1')
+
+#we can ignore level
+    def rising_2(self, gpio, level, tick):
+        '''
+        Records the start time for sensor 2, which is when the echo is pulled high.
+        Sets the state to 'await_fall'.
+        '''
+        if self.state[2] == 'await_rise':
+            #start the timer
+            self.start_time[2] = tick
+            self.state[2] = 'await_fall'
+        # else:
+        #     raise Exception('illegal rise 2')
+
+                
+    def falling_2(self, gpio, level, tick):
+        '''
+	    Computes distance detected based on the time the falling
+	    edge is sensed for sensor 2. Sets state to 'ready'.
+        '''
+        if self.state[2] == 'await_fall':
+            end_time = tick
+            delta_t = end_time - self.start_time[2]
+            dist = 343/2 * delta_t * 1e-6
+            self.distance[2] = dist
+            self.state[2] = 'ready' 
+        # else:
+
+        #     raise Exception('illegal fall 2')
+
+
+    def trigger(self):
+        '''
+        Sends a trigger and sets state to 'await_rise'
+        '''
+        counter = -1
+        for echo, trig in ECHO_TRIGGER:
+            counter += 1
+            if self.state[counter] == 'ready':
+                # Pull one (or all) trigger pins HIGH
+                self.io.write(trig, 1)
+                # Hold for 10microseconds.
+                time.sleep(0.000010)
+                # Pull the pins LOW again.
+                self.io.write(trig, 0)
+                # Update state to await rising
+                self.state[counter] = 'await_rise'
+            #else:
+            #    raise Exception(f'illegal trigger {counter}' + str(self.state))
+        #  time.sleep(.1)
+
+
+    def shutdown_ultrasonic(self):
+        '''
+        Cancels callback functions for each sensor.
+        '''
+        for i in range(3):
+            self.cbrise[i].cancel()
+            self.cbfall[i].cancel()
 
     def shutdown(self):
         '''stops robot'''
@@ -207,7 +344,6 @@ class EEBot:
         vel_right = vel_nominal * (math.cos(theta) +
                                    self.d/self.L * math.sin(theta))
 
-        # TODO: FIX ME!!!!!
         k = 1.5
         fric = .34 if vel_nominal > 0 else -.34
 
@@ -232,6 +368,9 @@ class EEBot:
         self.set_pwm(-sign * 1, sign*1)
         time.sleep(0.1)
 
+
+
+
     def turn(self, direction: int):
         '''
         turn in the specified direction
@@ -245,7 +384,6 @@ class EEBot:
             3, --> right
         '''
         direction = direction % 4
-
         if direction == R:
             assert self.snap(True, SPIN_PWM) == 90
         elif direction == L:
@@ -412,11 +550,20 @@ class EEBot:
             False --> got off the map somehow (fail)
         '''
         count = 0
+        print('in here')
         while True:
             left, middle, right = self.detectors_status()
-            if change_route[0] == True:
-                break
-                
+            # if change_route[0] == True:
+            #     break
+
+            #TODO READ THE ULTRA SONIC SENSORS HERE
+            self.trigger()
+            
+
+            #check if distance
+            if self.distance[1] < .2:
+                self.set(0,0)
+            #continue with the normal functions    
             if not left and middle and not right:
                 # keep going straight
                 self.set(LIN_SPEED, 0)
@@ -526,16 +673,17 @@ class EEBot:
         prev_route = []
         for dir in route:
             prev_route.append(dir)
-            print('continue')
-            if change_route[0] == True:
+            # print('continue')
+            # print(change_route[0])
+            # if change_route[0] == True:
                 
-                change_route[0] = False
-                print('we change')
-                prev_route.reverse()
-                for new_dir in prev_route:
-                    self.turn(new_dir)
-                    self.next_intersection(change_route)
-                break
+            #     change_route[0] = False
+            #     print('we change')
+            #     prev_route.reverse()
+            #     for new_dir in prev_route:
+            #         self.turn(new_dir)
+            #         self.next_intersection(change_route)
+            #     break
             self.turn(dir)
             self.next_intersection(change_route)
 

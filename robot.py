@@ -408,7 +408,7 @@ class EEBot:
         wait_time : float
             amount of seconds to spin for before giving up
 
-        TODO
+        
         ----
         check PWM vals
         '''
@@ -462,7 +462,7 @@ class EEBot:
             degree amount turned, in 90 degree increments
             i.e. returns 90, 180, 270, or 360
 
-        TODO
+        
         ----
         still need to check cutoffs
         '''
@@ -556,12 +556,12 @@ class EEBot:
             # if change_route[0] == True:
             #     break
 
-            #TODO READ THE ULTRA SONIC SENSORS HERE
+            #read the ultrasonic sensors
             self.trigger()
             
-
             #check if distance
             if self.distance[1] < .2:
+                #TODO MATTHEW add this intersection as blocked, and then recall map builder in the main loop
                 self.set(0,0)
             #continue with the normal functions    
             if not left and middle and not right:

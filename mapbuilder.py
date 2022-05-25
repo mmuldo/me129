@@ -54,7 +54,6 @@ def goto(
 
     route = m.shortest_route(start, dest)
     directions, heading = route_to_directions(route, heading)
-    print('follow directions')
     bot.follow_directions(directions, change_route)
 
     # update robot's heading

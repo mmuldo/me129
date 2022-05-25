@@ -11,8 +11,6 @@ W = 1
 S = 2
 E = 3
 
-# bot
-bot = robot.EEBot()
 
 # maps
 square = util.load_map('square.json')

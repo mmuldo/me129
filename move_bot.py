@@ -8,9 +8,13 @@ import util
 import ultrasonic
 import random
 import threading 
+import adjust_course
+import demo
+import pigpio
 
-control = robot.EEBot()
-ultra = ultrasonic.Ultrasonic()
+passed_io = pigpio.pi()
+control = robot.EEBot(passed_io)
+ultra = ultrasonic.Ultrasonic(passed_io)
 
 N = 0
 W = 1
@@ -18,77 +22,63 @@ S = 2
 E = 3
 map_l2 = {}
 
-desired_distance = 0.3
-
+stopflag = False
+stop_ultra = False
 
 def stopcontinual():
+    global stopflag
     stopflag = True
-def runcontinual(stop):
+
+def runcontinual():
+    global stopflag
     stopflag = False
     while not stopflag:
         ultra.trigger()
         time.sleep(.08 + 0.04 * random.random())
-        print(ultra.distance)
-        
+
+def stopUltra():
+    global stop_ultra
+    stop_ultra = True
+    
+def runUltra():
+    global stop_ultra
+    stop_ultra = False
+    adjustments = adjust_course.Adjust()
+    while not stop_ultra:
+        time.sleep(0.01)
+        adjustments.emergency(control, ultra)
+       
 
 if __name__ == "__main__":
     #start ultrasonic threading
-    thread = threading.Thread(target=runcontinual,args=(direction,))
-    thread.start()  
+    thread = threading.Thread(target=runcontinual,name='runcontinual')
+    thread.start()
+    # threadUltra = threading.Thread(target=runUltra,name='ultrasonic')
+    # threadUltra.start()
 
-    try:
+    # try:
         #create the map
 #         map_l2 = mapbuilder.build_map(control,N,(0,0))
 #         json_str = json.dumps(util.map_to_dict(map_l2))
 #         with open('map_l2.json', 'w') as file:
 #             file.write(json_str)
 #         #print(map_l2)
-
-        # #load the map
-        # with open('map_l2.json', 'r') as file:
-        #     data = file.read()
-        # loaded_map = json.loads(data)
-        # #print(util.dict_to_map(loaded_map))
-
+    #load the map
+    loaded_map = util.load_map('map_l2.json')
+    mapbuilder.wrapped_goto(loaded_map, control, N, (0,0), (1,1))
 
        # get the bot moving initially
-        control.set_pwm(0.8,0.8)
-        time.sleep(0.5)
-        while(1):
-            e = 0
-            k = .3
-            u = 0
-            # if the robot is at desired distance, stop
-            if ultra.distance[1] <= desired_distance:
-                control.set_pwm(0,0)
-                # print('stop')
-            # if the robot is within the desired distance on the right,
-            # turn left
-            elif ultra.distance[2] <= desired_distance:
-                e = desired_distance - ultra.distance[2]
-                u = k*e
-                PWM_left = max(0.6, min(0.9, 0.8 - u))
-                PWM_right = max(0.6, min(0.9, 0.8 + u))
-                control.set_pwm(PWM_left,PWM_right)
-                # print('left')
-            # if the robot is within the desired distance on the left,
-            # turn right
-            elif ultra.distance[2] > desired_distance:
-                e = ultra.distance[2] - desired_distance
-                u = -k*e
-                PWM_left = max(0.6, min(0.9, 0.8 - u))
-                PWM_right = max(0.6, min(0.9, 0.8 + u))
-                control.set_pwm(PWM_left,PWM_right)
-                # print('right')
-            # otherwise, stay straight
-            else:
-                control.set_pwm(0.8,0.8)
-                # print('stay straight')
+       
             
-    except BaseException as ex:
-        print("Ending due to exception: %s" % repr(ex))
+            
+    #except BaseException as ex:
+    #    print("Ending due to exception: %s" % repr(ex))
 
+    ultra.shutdown_ultrasonic() 
+    control.set_pwm(0,0)
     control.shutdown()
-    ultra.shutdown_ultrasonic()
     stopcontinual()
     thread.join()
+    # stopUltra()
+    # threadUltra.join()
+

@@ -101,6 +101,7 @@ class EEBot:
 
     def __init__(
         self,
+        passed_io,
         
         L: float = 0.103,
         d: float = 0.131
@@ -120,7 +121,7 @@ class EEBot:
         self.L = L
         self.d = d
 
-        self.io = pigpio.pi()
+        self.io = passed_io
         if not self.io.connected:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
@@ -372,9 +373,9 @@ class EEBot:
             if time.perf_counter() - start > 20:
                 # shouldn't ever hit this, but just in case
                 break
-        print(f't1: {t1}')
-        print(f't2: {t2}')
-        print(f't2-t1: {t2-t1}')
+        # print(f't1: {t1}')
+        # print(f't2: {t2}')
+        # print(f't2-t1: {t2-t1}')
         self.set_pwm(0,0)
 
         # in theory, the width of the tape corresponds to around 20 degrees,

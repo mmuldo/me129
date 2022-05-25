@@ -56,6 +56,45 @@ def goto(
     bot.follow_directions(directions)
     return heading
 
+def wrapped_goto(
+    m: Map,
+    bot: robot.EEBot,
+    heading: int,
+    start: Tuple[int, int],
+    dest: Tuple[int, int]
+) -> int:
+    '''
+    sends eebot from start to dest
+    just runs goto, but avoids the Intersection instantiation business
+
+    Parameters
+    ----------
+    m : Map
+        map eebot is traversing
+    bot : robot.EEBot
+        the robot
+    heading : int
+        initial heading of eebot
+    start : Intersection
+        (long, lat) starting point
+    dest : Intersection
+        (long, lat) ending point
+
+    Returns
+    -------
+    int
+        new heading
+    '''
+    s = m.get_intersection(start)
+    d = m.get_intersection(dest)
+    return goto(
+        m,
+        bot,
+        heading,
+        s,
+        d
+    )
+
 def return_to_origin(
     m: Map,
     bot: robot.EEBot,

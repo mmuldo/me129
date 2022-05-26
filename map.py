@@ -18,8 +18,9 @@ R = 3   # right
 
 # street existence
 UNKNOWN = -1
-PRESENT = 1
 ABSENT = 0
+PRESENT = 1
+BLOCKED = 2
 
 class Intersection:
     '''
@@ -35,14 +36,19 @@ class Intersection:
         -1 --> unknown
         0 --> no street
         1 --> street exists
+        2 --> street is blocked by an obstacle
+    blocked : bool
+        True --> intersection blocked
+        False --> intersection accessible
     '''
-    def __init__(self, coords: Tuple[int, int]):
+    def __init__(self, coords: Tuple[int, int], blocked: bool = False):
         self.coords = coords
         self.streets = [-1] * 4
+        self.blocked = blocked
 
     def neighbors(self) -> List[Tuple[int, int]]:
         '''
-        returns (long, lat) known neighbors of this intersection
+        returns (long, lat) known, accessible neighbors of this intersection
         '''
         neighs = []
         if self.streets[N] == PRESENT:
@@ -52,6 +58,21 @@ class Intersection:
         if self.streets[S] == PRESENT:
             neighs.append((self.coords[0], self.coords[1] - 1))
         if self.streets[E] == PRESENT:
+            neighs.append((self.coords[0] + 1, self.coords[1]))
+        return neighs
+
+    def blocked_neighbors(self) -> List[Tuple[int, int]]:
+        '''
+        returns (long, lat) known, blocked neighbors of this intersection
+        '''
+        neighs = []
+        if self.streets[N] == BLOCKED:
+            neighs.append((self.coords[0], self.coords[1] + 1))
+        if self.streets[W] == BLOCKED:
+            neighs.append((self.coords[0] - 1, self.coords[1]))
+        if self.streets[S] == BLOCKED:
+            neighs.append((self.coords[0], self.coords[1] - 1))
+        if self.streets[E] == BLOCKED:
             neighs.append((self.coords[0] + 1, self.coords[1]))
         return neighs
 
@@ -89,12 +110,6 @@ class Intersection:
 
     def __hash__(self):
         return self.coords.__hash__()
-
-    #def __add__(self, other):
-    #    return Intersection(self.long + other.long, self.lat + other.lat)
-
-    #def __sub__(self, other):
-    #    return Intersection(self.long - other.long, self.lat - other.lat)
 
     def __str__(self):
         return str(self.coords)
@@ -148,7 +163,7 @@ class Map:
 
     def neighbors(self, intersection: Intersection) -> List[Intersection]:
         '''
-        returns neighbors of specified intersection
+        returns accessible neighbors of specified intersection
 
         Parameters
         ----------
@@ -169,6 +184,34 @@ class Map:
         return [
             self.get_intersection(coords)
             for coords in intersection.neighbors()
+        ]
+
+    def blocked_neighbors(
+        self, 
+        intersection: Intersection
+    ) -> List[Intersection]:
+        '''
+        returns blocked neighbors of specified intersection
+
+        Parameters
+        ----------
+        intersection : Intersection
+            intersection in map
+
+        Preconditions
+        -------------
+        assumes intersection is in map
+
+        Returns
+        -------
+        List[Intersection]
+            list of blocked neighbors
+        '''
+        assert intersection in self.intersections
+
+        return [
+            self.get_intersection(coords)
+            for coords in intersection.blocked_neighbors()
         ]
 
     def is_valid(self) -> bool:
@@ -215,7 +258,15 @@ class Map:
         ) -> Intersection:
             # initialize min distance
             min = sys.maxsize
-            min_intersection = random.choice(self.intersections)
+            # min intersection is initially randomly chosen from unvisited
+            # intersections
+            min_intersection = random.choice(
+                [
+                    intersection
+                    for intersection in self.intersections
+                    if not visited[intersection]
+                ]
+            )
 
             for intersection in self.intersections:
                 if dist[intersection] < min and not visited[intersection]:
@@ -224,16 +275,19 @@ class Map:
             return min_intersection
 
 
+        # shortest routes from src to each intersection
         routes = {
             intersection: []
             for intersection in self.intersections
         }
 
+        # shortest distance from src to each intersection
         dist = {
             intersection: sys.maxsize
             for intersection in self.intersections
         }
 
+        # whether or not each intersection has been visited
         visited = {
             intersection: False
             for intersection in self.intersections
@@ -257,7 +311,11 @@ class Map:
             # distance is greater than new distance and
             # the intersection in not in the shortest path tree
             for neighbor in self.neighbors(x):
-                if not visited[neighbor] and dist[neighbor] > dist[x] + 1:
+                if (
+                    not neighbor.blocked and 
+                    not visited[neighbor] and 
+                    dist[neighbor] > dist[x] + 1
+                ):
                     dist[neighbor] = dist[x] + 1
                     routes[neighbor] = routes[x] + [neighbor]
 

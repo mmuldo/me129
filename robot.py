@@ -39,6 +39,7 @@ R = 3   # right
 UNKNOWN = -1
 ABSENT = 0
 PRESENT = 1
+BLOCKED = 2
 
 def duty_to_pwm(
     motor_number: int,
@@ -79,8 +80,6 @@ class EEBot:
     ----------
     io : pigpio.pi
         pi I/O instance with which we can interact with our little eebot
-    heading : int
-        current heading of the robot
     motors: List[int]
         GPIO pins that the motor leads are connected to;
         looking at the bot from the back, the pin connections in order
@@ -91,15 +90,10 @@ class EEBot:
         distance from the rear axle to the caster wheel in meters
     d : float
         distance between the two wheels in meters
-
-    Methods
-    -------
-    shutdown()
-        stops robot
-    detectors_status()
-        prints the status of each LED detector
-    set_pwm(leftdutycycle, rightdutycycle)
-        sets pwm of left and right motors
+    state : List[str]
+        indicates the state of each ultrasound
+    distace : List[int]
+        indicates the distance to the nearest object from each ultrasound
     '''
 
     def __init__(
@@ -123,7 +117,6 @@ class EEBot:
         self.LED_detectors = list(LED_PINS.keys())
         self.L = L
         self.d = d
-        self.heading = N # initialize the current heading to North.
         self.io = passed_io
         self.state = ['ready', 'ready', 'ready']
         self.distance = [0, 0, 0]
@@ -369,8 +362,6 @@ class EEBot:
         time.sleep(0.1)
 
 
-
-
     def turn(self, direction: int):
         '''
         turn in the specified direction
@@ -408,7 +399,13 @@ class EEBot:
         wait_time : float
             amount of seconds to spin for before giving up
 
-        
+        Returns
+        -------
+        bool
+            True --> found line
+            False --> wait_time elapsed before found line
+
+        TODO
         ----
         check PWM vals
         '''
@@ -425,6 +422,7 @@ class EEBot:
                 return False
         self.set_pwm(0, 0)
         return True
+
 
     def get_off_line(self, spin_right: bool):
         '''
@@ -462,7 +460,7 @@ class EEBot:
             degree amount turned, in 90 degree increments
             i.e. returns 90, 180, 270, or 360
 
-        
+        TODO
         ----
         still need to check cutoffs
         '''
@@ -486,9 +484,6 @@ class EEBot:
             if time.perf_counter() - start > 20:
                 # shouldn't ever hit this, but just in case
                 break
-        # print(f't1: {t1}')
-        # print(f't2: {t2}')
-        # print(f't2-t1: {t2-t1}')
         self.set_pwm(0,0)
 
         # in theory, the width of the tape corresponds to around 20 degrees,
@@ -498,15 +493,12 @@ class EEBot:
         print(ratio)
         if ratio < 5.9:
             # should be around 4.5 in this case
-            self.heading = (self.heading + spin_sign*1) % 4
             return 90
         elif 5.9 <= ratio < 10.5:
             # should be around 9 in this case
-            self.heading = (self.heading + spin_sign*2) % 4
             return 180
         elif 10.5 <= ratio < 14.1:
             # should be around 13.5 in this case
-            self.heading = (self.heading + spin_sign*3) % 4
             return 270
         else:
             return 360
@@ -718,9 +710,6 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
-        # update robot's current heading
-        self.heading = heading
-
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
 
@@ -751,7 +740,6 @@ class EEBot:
 
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
-        self.heading = new_heading
         return (streets, new_heading)
 
     def first_scan(self):
@@ -775,9 +763,6 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
-        # update robot's heading
-        self.heading = N
-
         streets = [UNKNOWN] * 4
 
         # check forward direction
@@ -803,5 +788,4 @@ class EEBot:
             streets[W] = ABSENT
             heading = N
 
-        self.heading = heading
         return (streets, heading)

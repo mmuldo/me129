@@ -7,6 +7,7 @@ from map import Intersection, Map, route_to_directions
 UNKNOWN = -1
 ABSENT = 0
 PRESENT = 1
+BLOCKED = 2
 
 # cardinal directions
 N = 0
@@ -23,11 +24,10 @@ R = 3
 def goto(
     m: Map,
     bot: robot.EEBot,
-    change_route,
     heading: int,
     start: Intersection,
     dest: Intersection
-) -> int:
+) -> Tuple[Intersection, int]:
     '''
     sends eebot from start to dest
 
@@ -46,28 +46,25 @@ def goto(
 
     Returns
     -------
-    int
-        new heading
+    Tuple[Intersection, int]
+        intersection we ending up arriving at and new heading
     '''
-    # update robot's heading
-    bot.heading = heading
-
     route = m.shortest_route(start, dest)
-    directions, heading = route_to_directions(route, heading)
-    bot.follow_directions(directions, change_route)
+    directions = route_to_directions(route)
+    new_int, new_heading = bot.follow_directions(directions)
 
-    # update robot's heading
-    bot.heading = heading
-    return heading
+    if new_int != dest:
+        new_int, new_heading = goto(m, bot, new_heading, new_int, dest)
+
+    return new_int, new_heading
 
 def wrapped_goto(
     m: Map,
     bot: robot.EEBot,
-    change_route,
     heading: int,
     start: Tuple[int, int],
     dest: Tuple[int, int]
-) -> int:
+) -> Tuple[Intersection, int]:
     '''
     sends eebot from start to dest
     just runs goto, but avoids the Intersection instantiation business
@@ -87,26 +84,20 @@ def wrapped_goto(
 
     Returns
     -------
-    int
-        new heading
+    Tuple[Intersection, int]
+        intersection we ending up arriving at and new heading
     '''
+    # TODO: throw exception if s or d not in map
     s = m.get_intersection(start)
     d = m.get_intersection(dest)
-    return goto(
-        m,
-        bot,
-        change_route,
-        heading,
-        s,
-        d
-    )
+    return goto(m, bot, heading, s, d)
 
 def return_to_origin(
     m: Map,
     bot: robot.EEBot,
     heading: int,
     start: Intersection
-) -> int:
+) -> Tuple[Intersection, int]:
     '''
     sends eebot from start back to origin
 
@@ -123,11 +114,11 @@ def return_to_origin(
 
     Returns
     -------
-    int
-        new heading
+    Tuple[Intersection, int]
+        intersection we ending up arriving at and new heading
     '''
     origin = m.get_intersection((0,0))
-    return goto(m, bot, [False], heading, start, origin)
+    return goto(m, bot, heading, start, origin)
 
 
 def dance(
@@ -199,7 +190,7 @@ def build_map(
         # next intersection to explore is at the top of the come_back queue
         next = come_back[0]
         print(f'next is {next}')
-        heading = goto(m, bot, [False], heading, current, next)
+        _, heading = goto(m, bot, heading, current, next)
         current = next
 
         print(f'current intersection: {current}')
@@ -261,6 +252,106 @@ def build_map(
         print()
         print()
         print()
-    heading = return_to_origin(m, bot, heading, current)
+    _, heading = return_to_origin(m, bot, heading, current)
     heading = dance(bot, heading)
     return (m, heading)
+
+
+def goto_unexplored(
+    bot: robot.EEBot,
+    heading: int,
+    start: Tuple[int,int],
+    dest: Tuple[int, int]
+) -> int:
+    '''
+    attempts to go from start to dest in an unexplored map
+
+    Parameters
+    ----------
+    bot : robot.EEbot
+        the bot :)
+    heading : int
+        initial heading of eebot
+        NB: needs to be facing 180 degrees away from a street (black tape)
+    start : Tuple[int, int], optional
+        (long, lat) starting point
+    dest : Tuple[int, int], optional
+        (long, lat) ending point
+
+    Returns
+    -------
+    int
+        the resulting heading after process is completed
+    '''
+    current = Intersection(start)
+    m = Map([current])
+    come_back = [current]
+    first_iteration = True
+
+    while come_back:
+        # next intersection to explore is at the top of the come_back queue
+        next = come_back[0]
+        print(f'next is {next}')
+        _, heading = goto(m, bot, heading, current, next)
+        current = next
+
+        print(f'current intersection: {current}')
+        print(f'current streets: {current.streets}')
+
+        if first_iteration:
+            street_info, heading = bot.first_scan()
+            first_iteration = False
+        else:
+            # if the street to the right is unkown, check right in scan
+            # otherwise, check left in scan
+            check_right = current.streets[(heading + R)%4] == UNKNOWN
+            street_info, heading = bot.partial_scan(check_right, heading)
+
+        print(f'street info of {current}: {street_info}')
+        print(f'new heading: {heading}')
+
+        # update streets with new info
+        for d in range(len(current.streets)):
+            if street_info[d] != UNKNOWN:
+                current.streets[d] = street_info[d]
+
+        print(f'new street info: {current.streets}')
+
+        # update neighbors as well
+        for neighbor_coords in current.neighbors():
+            print(f'neighbor coords: {neighbor_coords}')
+            neighbor = m.get_intersection(neighbor_coords)
+            print(f'neighbor: {neighbor}')
+
+            if neighbor:
+                # this neighbor is already in map, so update streets
+                neighbor.streets[neighbor.direction(current)] = PRESENT
+
+                # remove neighbor from come_back queue if necessary
+                if UNKNOWN not in neighbor.streets and neighbor in come_back:
+                    come_back.remove(neighbor)
+            else:
+                # neighbor not yet in map, so initialize it
+                neighbor = Intersection(neighbor_coords)
+                neighbor.streets[neighbor.direction(current)] = PRESENT
+                m.intersections.append(neighbor)
+
+                # we'll need to come back to this later
+                come_back.append(neighbor)
+            print(f'neighbor: {neighbor}')
+            print(f'neighbor streets: {neighbor.streets}')
+
+        # check if we need to come back to current at some point
+        come_back.remove(current)
+        if UNKNOWN in current.streets:
+            come_back.append(current)
+        print([str(i) for i in come_back])
+        print(m)
+
+        print()
+        print()
+        print()
+        print()
+    _, heading = return_to_origin(m, bot, heading, current)
+    heading = dance(bot, heading)
+    return heading

@@ -1,15 +1,36 @@
-import pigpio
-import sys
-import math
-import time
+'''
+controls the behavior of our robot (eebot)
+
+Classes
+-------
+EEBot: a robot capable of exploring and traversing maps using LED and
+    ultrasonic sensors
+'''
+
+# project libraries
+from util import *
+import map
+import ultrasonic
+
+# utility libraries
 from datetime import datetime, timedelta
 from typing import List, Tuple
 from functools import reduce
-ECHO_TRIGGER = [(13,16), (20,19), (21,26)]
+import math
+import sys
+import time
 
-# first element is the left motor; second is the right.
-# first element of each tuple is the negative terminal; second is positive
-MOTOR_PINS = [(7, 8), (5, 6)]
+# other libraries
+import pigpio
+
+
+#################
+### constants ###
+#################
+# ultrasonic consts
+# TODO: check if these values are right (in meters)
+INT_BLOCKED_DIST = .5
+STR_BLOCKED_DIST = .2
 
 # colors correspond to the color of the jumper cable connected to each LED
 LED_PINS = {
@@ -18,61 +39,15 @@ LED_PINS = {
     14: 'left',
 }
 
-# util consts
+# motor consts
 SPIN_PWM = 0.7
 LIN_SPEED = 0.35
 NEXT_INT_OVERSHOOT = 0.14/.25 # seconds
 
-# Cardinal directions
-N = 0
-W = 1
-S = 2
-E = 3
 
-# Directions
-F = 0   # forwards
-L = 1   # left
-B = 2   # backwards
-R = 3   # right
-
-# existence of streets
-UNKNOWN = -1
-ABSENT = 0
-PRESENT = 1
-BLOCKED = 2
-
-def duty_to_pwm(
-    motor_number: int,
-    dutycycle: float
-) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    '''
-    converts dutycycle to pwm
-
-    Parameters
-    ----------
-    motor_number : int
-        0 -> for left motor, 1 -> for right motor; errors if anything else
-    dutycycle : float
-        dutycycle, between -1.0 and 1.0
-
-    Returns
-    -------
-    Tuple[Tuple[int, int], Tuple[int, int]]
-        two tuples: the first is the (motor_pin, pwm) for the pin
-        of the motor being set and the second is (other_motor_pin, 0)
-    '''
-    magnitude = abs(round(dutycycle*255))
-    if magnitude > 255:
-        # max pwm is 255
-        magnitude = 255
-
-    # negative dutycycle -> negative pin, positive -> positive pin
-    pin_to_set = 0 if dutycycle < 0 else 1
-    other_pin = 0 if pin_to_set == 1 else 1
-
-    return ((MOTOR_PINS[motor_number][pin_to_set], magnitude),
-            (MOTOR_PINS[motor_number][other_pin], 0))
-
+###############
+### classes ###
+###############
 class EEBot:
     '''eebot instance!
 
@@ -80,69 +55,101 @@ class EEBot:
     ----------
     io : pigpio.pi
         pi I/O instance with which we can interact with our little eebot
+    map : map.Map
+        the map that the robot is traversing/exploring
+    intersection : map.Intersection
+        robot's current interseciton
+    heading : int
+        robot's current heading
+    come_back : List[Intersections]
+        queue of Intersections we need to explore more
     motors: List[int]
         GPIO pins that the motor leads are connected to;
         looking at the bot from the back, the pin connections in order
         are expected to be: [LEFT_NEG, LEFT_POS, RIGHT_NEG, RIGHT_POS]
     LED_detectors : List[int]
         GPIO pins that the LED/phototransistor detectors are connected to
+    ultra : Ultrasonic
+        ultrasonic detectors
     L : float
         distance from the rear axle to the caster wheel in meters
     d : float
         distance between the two wheels in meters
-    state : List[str]
-        indicates the state of each ultrasound
-    distace : List[int]
-        indicates the distance to the nearest object from each ultrasound
-    '''
 
+    Methods
+    -------
+    asses_blockage(moving): uses ultrasonics to determine a blockage
+        directly ahead
+    detectors_status(): gets reading of each LED detector
+    set_pwm(leftdutycycle, rightdutycycle): sets PWM for both motors
+    set(vel_nominal, steering_angle): sets vector-ed velocity
+    adjust(): adjusts bot so that only middle sensor is over tape, if there
+        is tape underneath
+    next_intersection(): drives from one intersection to the interseciton
+        directly ahead
+    spin_kick(spin_right): maxes out pwm to get motors going to help with 
+        spinning
+    snap(spin_right): starts over black tape and spins to next black tape,
+        reporting the amount of degrees spun
+    turn(direction): turns the bot in the direction indicated
+    first_scan(): very first scan when first building a map (doesn't assume
+        we have black tape directly behind)
+    partial_scan(): intersection scan that assumes we have black tape 
+        directly behind
+    follow_directions(route): tells bot to follow a sequence of directions
+        on a map
+    goto(dest): tells bot to go to destination intersection (if possible)
+    find(dest): tells bot to go to destination in unexplored map
+    shutdown(): stops robot
+    '''
     def __init__(
         self,
         passed_io: pigpio.pi,
+        botMap: map.Map = None,
+        intersection: map.Intersection = map.Intersection((0,0)),
+        heading: int = N,
+        come_back: List[map.Intersection] = None,
         L: float = 0.103,
         d: float = 0.131,
-        
     ):
         '''initializes eebot
 
         Parameters
         ----------
-        motors : List[int]
-            GPIO
-        LED_detectors : List[int]
-            GPIO pins that the LED/phototransistor detectors are connected to
+        passed_io : pigpio.pi
+            pi gpio instance
+        botMap : map.Map
+            the map that the robot is traversing/exploring
+        intersection : map.Intersection
+            robot's current interseciton
+        heading : int
+            robot's current heading
+        L : float
+            length in m from wheels to ball bearing
+        d : float
+            length in m between wheels
         '''
-        
         self.motors = [pin for motor in MOTOR_PINS for pin in motor]
         self.LED_detectors = list(LED_PINS.keys())
+        self.intersection = intersection
+        self.heading = heading
         self.L = L
         self.d = d
         self.io = passed_io
-        self.state = ['ready', 'ready', 'ready']
-        self.distance = [0, 0, 0]
-        self.start_time = [0, 0, 0]
-        self.cbrise = []
-        self.cbfall = []
+        self.ultra = ultrasonic.Ultrasonic(passed_io)
 
-        for echo, trig in ECHO_TRIGGER:
-            # Set up the two pins as output/input.
-            self.io.set_mode(trig, pigpio.OUTPUT)
-            self.io.set_mode(echo, pigpio.INPUT)
-        # Set up the interrupt handlers or callbacks.
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.RISING_EDGE, self.rising_0))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.FALLING_EDGE, self.falling_0))
-        
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.RISING_EDGE, self.rising_1))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.FALLING_EDGE, self.falling_1))
-        
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.RISING_EDGE, self.rising_2))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.FALLING_EDGE, self.falling_2))
+        # map init
+        if not botMap:
+            self.map = map.Map([self.intersection])
+        if not come_back:
+            self.come_back = [self.intersection]
 
-
+        # make sure gpio is connected
         if not self.io.connected:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
 
+        # set up motor pins
         for pin in self.motors:
             # Set up the four pins as output (commanding the motors).
             self.io.set_mode(pin, pigpio.OUTPUT)
@@ -158,135 +165,81 @@ class EEBot:
             # Clear all pins, just in case.
             self.io.set_PWM_dutycycle(pin, 0)
 
+        # set up leds
         for pin in self.LED_detectors:
             # setup four LED pins as input
             self.io.set_mode(pin, pigpio.INPUT)
 
-    #we can ignore level
-    def rising_0(self, gpio, level, tick):
-        '''
-        Records the start time for sensor 0, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
-        '''
-        if self.state[0] == 'await_rise':
-            #start the timer
-            self.start_time[0] = tick
-            self.state[0] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 0')
 
-                
-    def falling_0(self, gpio, level, tick):
+    ##############
+    ## blockage ##
+    ##############
+    def assess_blockage(self, moving: bool = False) -> bool:
         '''
-	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 0. Sets state to 'ready'.
-        '''
-        if self.state[0] == 'await_fall':
-            end_time = tick
-            delta_t = end_time - self.start_time[0]
-            dist = 343/2 * delta_t * 1e-6
-            self.distance[0] = dist
-            self.state[0] = 'ready' 
-        # else:
-        #     raise Exception('illegal fall 0')
+        uses ultrasound to scan for forward blockage, and updates map 
+        accordingly
 
-#we can ignore level
-    def rising_1(self, gpio, level, tick):
-        '''
-        Records the start time for sensor 1, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
-        '''
-        if self.state[1] == 'await_rise':
-            #start the timer
-            self.start_time[1] = tick
-            self.state[1] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 1')
+        Parameters
+        ----------
+        moving : bool
+            True -> bot is currently line following
+            False -> bot is currently stationary
 
-                
-    def falling_1(self, gpio, level, tick):
+        Returns
+        -------
+        bool
+            True --> map same as before
+            False --> map changed upon assessment
         '''
-	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 1. Sets state to 'ready'.
-        '''
-        if self.state[1] == 'await_fall':
-            end_time = tick
-            delta_t = end_time - self.start_time[1]
-            dist = 343/2 * delta_t * 1e-6
-            self.distance[1] = dist
-            self.state[1] = 'ready' 
-        # else:
-        #     raise Exception('illegal fall 1')
+        # save original map to check if it's changed at the end
+        m = self.map.copy()
 
-#we can ignore level
-    def rising_2(self, gpio, level, tick):
-        '''
-        Records the start time for sensor 2, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
-        '''
-        if self.state[2] == 'await_rise':
-            #start the timer
-            self.start_time[2] = tick
-            self.state[2] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 2')
+        # return if the forward neighbor is neither registered as 
+        # present or blocked
+        if not self.intersection.streets[self.heading] > ABSENT:
+            return True
 
-                
-    def falling_2(self, gpio, level, tick):
-        '''
-	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 2. Sets state to 'ready'.
-        '''
-        if self.state[2] == 'await_fall':
-            end_time = tick
-            delta_t = end_time - self.start_time[2]
-            dist = 343/2 * delta_t * 1e-6
-            self.distance[2] = dist
-            self.state[2] = 'ready' 
-        # else:
+        # get intersection that is directly ahead
+        forward_neighbor = self.map.neighbors(
+            self.intersection
+        )[self.heading]
 
-        #     raise Exception('illegal fall 2')
+        # read ultrasound
+        self.ultra.trigger()
+        dist_to_obstacle = self.ultra.distance[1]
+        
+        # if moving and we see an obstacle, the best we can do is assume 
+        # intersection is blocked (and not the street)
+        if moving:
+            # here, we use the blocking distance indicative of a street
+            # blockage because we could be like halfway through the
+            # intersection or something when the obstacle pops up
+            forward_neighbor.blocked = dist_to_obstacle < STR_BLOCKED_DIST
+            # and don't do any of the other fancy stuff that distinguishes
+            # an intersection blockage from a street blockage
+            return m == self.map
+
+        # if stationary, we can more accurately distinguish between
+        # a blocked intersection vs a blocked street.
+        # the first step is to try and detect an intersection blockage
+        forward_neighbor.blocked = dist_to_obstacle < INT_BLOCKED_DIST
+
+        # next, try and detect a street blockage, and update the street info
+        # for both intersections accordingly
+        if dist_to_obstacle < STR_BLOCKED_DIST:
+            self.intersection.streets[self.heading] = BLOCKED
+            forward_neighbor.streets[(-self.heading)%4] = BLOCKED
+        else:
+            self.intersection.streets[self.heading] = PRESENT
+            forward_neighbor.streets[(-self.heading)%4] = PRESENT
+
+        # if the map changed, return false to indicate we gained new info
+        return m == self.map
 
 
-    def trigger(self):
-        '''
-        Sends a trigger and sets state to 'await_rise'
-        '''
-        counter = -1
-        for echo, trig in ECHO_TRIGGER:
-            counter += 1
-            if self.state[counter] == 'ready':
-                # Pull one (or all) trigger pins HIGH
-                self.io.write(trig, 1)
-                # Hold for 10microseconds.
-                time.sleep(0.000010)
-                # Pull the pins LOW again.
-                self.io.write(trig, 0)
-                # Update state to await rising
-                self.state[counter] = 'await_rise'
-            #else:
-            #    raise Exception(f'illegal trigger {counter}' + str(self.state))
-        #  time.sleep(.1)
-
-
-    def shutdown_ultrasonic(self):
-        '''
-        Cancels callback functions for each sensor.
-        '''
-        for i in range(3):
-            self.cbrise[i].cancel()
-            self.cbfall[i].cancel()
-
-    def shutdown(self):
-        '''stops robot'''
-        print("Turning off...")
-
-        for pin in self.motors:
-            self.io.set_PWM_dutycycle(pin, 0)
-
-        self.io.stop()
-
-
+    ###################
+    ## LED detecting ##
+    ###################
     def detectors_status(self) -> Tuple[bool, bool, bool]:
         '''gets reading of each detector
 
@@ -302,6 +255,11 @@ class EEBot:
             for pin in sorted(self.LED_detectors)
         )
 
+
+
+    ###################
+    ## motor control ##
+    ###################
     def set_pwm(self, leftdutycycle: float, rightdutycycle: float):
         '''
         sets the PWM for both motors
@@ -313,7 +271,14 @@ class EEBot:
         rightdutycycle
             dutycycle for left motor, between -1.0 and 1.0
         '''
-        for motor_number, dutycycle in enumerate([leftdutycycle, rightdutycycle]):
+        for motor_number, dutycycle in enumerate([
+            leftdutycycle, 
+            rightdutycycle
+        ]):
+            # convert a (motor_number, dutycycle) pair to a
+            # ((motor_number, pwm), (motor_number, pwm)) thing
+            # i.e. this contains the pwm info for both leads of both
+            # motors
             motor_pwm = duty_to_pwm(motor_number, dutycycle)
 
             self.io.set_PWM_dutycycle(*motor_pwm[0])
@@ -348,165 +313,10 @@ class EEBot:
                 k*vel_right + fric
             )
 
-    def spin_kick(self, spin_right: bool):
-        '''maxes out pwm spin for a short period to get motors going
 
-        Parameters
-        -------
-        spin_right : bool
-            True --> spin right
-            False --> spin left
-        '''
-        sign = -1 if spin_right else 1
-        self.set_pwm(-sign * 1, sign*1)
-        time.sleep(0.1)
-
-
-    def turn(self, direction: int):
-        '''
-        turn in the specified direction
-
-        Parameters
-        ----------
-        value : int
-            0, --> forwards
-            1, --> left
-            2, --> backwards
-            3, --> right
-        '''
-        direction = direction % 4
-        if direction == R:
-            assert self.snap(True, SPIN_PWM) == 90
-        elif direction == L:
-            assert self.snap(False, SPIN_PWM) == 90
-        elif direction == B:
-            degree = self.snap(True, SPIN_PWM)
-            if degree == 90:
-                assert self.snap(True, SPIN_PWM) == 90
-            else:
-                assert degree == 180
-
-
-    def find_line(self, spin_right: bool, wait_time: float) -> bool:
-        '''
-        spin until a line is found
-
-        Parameters
-        ----------
-        spin_right : bool
-            True --> spin right
-            False --> spin left
-        wait_time : float
-            amount of seconds to spin for before giving up
-
-        Returns
-        -------
-        bool
-            True --> found line
-            False --> wait_time elapsed before found line
-
-        TODO
-        ----
-        check PWM vals
-        '''
-        sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.7, sign*0.7)
-
-        start_time = datetime.now()
-        rml = [0, 0, 0]
-        while rml[1] != 1:
-            rml = [self.io.read(pin) for pin in self.LED_detectors]
-            time_delta = datetime.now() - start_time
-            if time_delta.seconds + time_delta.microseconds * 1e-6 >= wait_time:
-                self.set_pwm(0, 0)
-                return False
-        self.set_pwm(0, 0)
-        return True
-
-
-    def get_off_line(self, spin_right: bool):
-        '''
-        if currently over a line, spin until off of it
-
-        Parameters
-        ----------
-        spin_right : bool
-            True --> spin right
-            False --> spin left
-        '''
-        sign = -1 if spin_right else 1
-        self.set_pwm(-sign*0.7, sign*0.7)
-        while 1 in [self.io.read(pin) for pin in self.LED_detectors]:
-            pass
-        self.set_pwm(0,0)
-
-    def snap(self, spin_right: bool, pwm: float) -> int:
-        '''
-        starts spinning and snaps to nearest black tape.
-        if currently over black tape, spins off and then starts
-        searching for black tape.
-
-        Parameters
-        ----------
-        spin_right : bool
-            True --> spin right
-            False --> spin left
-        pwm : float
-            pwm to spin at (between 0.0 and 1.0)
-
-        Returns
-        -------
-        int
-            degree amount turned, in 90 degree increments
-            i.e. returns 90, 180, 270, or 360
-
-        TODO
-        ----
-        still need to check cutoffs
-        '''
-        spin_sign = -1 if spin_right else 1
-        self.spin_kick(spin_right)
-        self.set_pwm(- spin_sign * pwm, spin_sign * pwm)
-        outside_LED_off = True
-
-        start = time.perf_counter()
-        while True:
-            left, middle, right = self.detectors_status()
-            if (
-                (not spin_right and left) or (spin_right and right)
-            ) and outside_LED_off:
-                t1 = time.perf_counter() - start
-                outside_LED_off = False
-            if not left and middle and not right and not outside_LED_off:
-                t2 = time.perf_counter() - start
-                ratio = t2/(t2-t1)
-                break
-            if time.perf_counter() - start > 20:
-                # shouldn't ever hit this, but just in case
-                break
-        self.set_pwm(0,0)
-
-        # in theory, the width of the tape corresponds to around 20 degrees,
-        # so the the ratio of a spin in right angle increments to the spin
-        # of a single LED across the tape is 90/20 = 4.5, 180/20 = 9,
-        # 270/20 = 13.5, and 360/20 = 18
-        print(ratio)
-        if ratio < 5.9:
-            # should be around 4.5 in this case
-            return 90
-        elif 5.9 <= ratio < 10.5:
-            # should be around 9 in this case
-            return 180
-        elif 10.5 <= ratio < 14.1:
-            # should be around 13.5 in this case
-            return 270
-        else:
-            return 360
-
-        # shouldn't reach this point
-        assert False
-
-
+    ####################
+    ## linear driving ##
+    ####################
     def adjust(self):
         '''
         if over tape, adjusts bot such that only middle sensor is over
@@ -526,7 +336,7 @@ class EEBot:
 
         self.set_pwm(0,0)
 
-    def next_intersection(self, change_route) -> bool:
+    def next_intersection(self) -> bool:
         '''
         sends eebot to next intersection
 
@@ -538,24 +348,31 @@ class EEBot:
         Returns
         -------
         bool
-            True --> successfully reached an intersection
-            False --> got off the map somehow (fail)
+            True --> reached next intersection without having to abort
+            False --> have to abort current process because we have new info
         '''
-        count = 0
-        print('in here')
         while True:
+            # read LED detectors
             left, middle, right = self.detectors_status()
-            # if change_route[0] == True:
-            #     break
-
-            #read the ultrasonic sensors
-            self.trigger()
+            # read the ultrasonic sensors
+            self.ultra.trigger()
             
-            #check if distance
-            if self.distance[1] < .2:
-                #TODO MATTHEW add this intersection as blocked, and then recall map builder in the main loop
-                self.set(0,0)
-            #continue with the normal functions    
+            # check for obstacle directly ahead
+            if self.ultra.distance[1] < STR_BLOCKED_DIST:
+                # this is called to update the map
+                self.assess_blockage(moving=True)
+
+                # turn around
+                self.turn(B)
+                self.heading = (self.heading + B)%4
+
+                # go back to previous intersection
+                self.next_intersection()
+
+                # abort process
+                return False
+
+            # normal line following
             if not left and middle and not right:
                 # keep going straight
                 self.set(LIN_SPEED, 0)
@@ -581,119 +398,283 @@ class EEBot:
                 # adjust such that only middle sensor over tape (if possible)
                 self.adjust()
 
+                # update new intersection
+                self.intersection = self.map.get_neighbor(
+                    self.intersection, 
+                    self.heading
+                )
+                # current intersection should be valid and not None
+                assert self.intersection
+
+                # successfully reached next intersection
                 return True
-            elif not left and not middle and not right:
-                # off map
-                # stop
-                if count < 50:
-                    self.set(LIN_SPEED, 0)
-                    count += 1
-                else:
-                    print('off the map')
-                    self.set_pwm(0,0)
-                    return False
+
             else:
-                # shouldn't hit this because we exhausted all valid cases
-                # only non valid case is
-                #   left and not middle and right
-                assert False
+                #TODO: use tunnel following here
+                self.set_pwm(0,0)
 
 
-    def follow_tape(self):
-        '''sends eebot to go find some black tape and follow it'''
-        prev = None
-        
-        hit_line = False
-        counter = 0
-        spin_start_time = None
-        while True:
-            pins = self.LED_detectors
-            lmr = [self.io.read(pin) for pin in pins]
-            lr = [lmr[0], lmr[2]]
+    #############
+    ## turning ##
+    #############
+    def spin_kick(self, spin_right: bool):
+        '''maxes out pwm spin for a short period to get motors going
 
-            if lmr != [0, 0, 0]:
-                hit_line = True
-                spin_start_time = None
-                counter = 0
-            
-            #keep going straight
-            if lmr == [0, 1, 0]:
-                self.set(0.25, 0)
-            #turn right
-            elif lr == [0, 1]:
-                prev = 'right'
-                self.set(0.25, 90)
-            #turn left
-            elif lr == [1, 0]:
-                prev = 'left'
-                self.set(0.25, -90)
-            
-            #we hit an intersection
-            elif lmr == [1, 1, 1]:
-                self.set(0.25, 0)
-                time.sleep(0.5)
-                self.set(0,0)
-                return 'INTERSECTION'
-#                 if prev == 'left':
-#                     self.set(0.25, -90)
-#                 elif prev == 'right':
-#                     self.set(0.25, 90)
-            #we have reached a dead end
-            elif lmr == [0, 0, 0] and hit_line:
-                self.set(0, 0)
-                #return 'DEAD'
-#                 if not spin_start_time:
-#                     spin_start_time = datetime.now()
-#                 elif (datetime.now() - spin_start_time).seconds >= 5:
-#                     hit_line = False
-            #search
-            elif lmr == [0, 0, 0] and not hit_line:
-                spin_start_time = None
-                self.set(.3, 30 - counter)
-                counter += .0005
-
-    def follow_directions(self, route, change_route):
+        Parameters
+        -------
+        spin_right : bool
+            True --> spin right
+            False --> spin left
         '''
-        follow a sequence of turns like so:
-            turn1 --> drive straight --> turn2 --> drive straight --> ...
+        # sign is negative for right spin, positive for left spin
+        sign = -1 if spin_right else 1
+        self.set_pwm(-sign, sign)
+        time.sleep(0.1)
+        # assumes caller sets pwm immediately after calling this function
+
+    def snap(self, spin_right: bool, pwm: float) -> int:
+        '''
+        starts spinning and snaps to nearest black tape.
+        if currently over black tape, spins off and then starts
+        searching for black tape.
 
         Parameters
         ----------
-        route : List[int]
-            the sequence of turns (forward, left, backward, right) to follow
+        spin_right : bool
+            True --> spin right
+            False --> spin left
+        pwm : float
+            pwm to spin at (between 0.0 and 1.0)
+
+        Returns
+        -------
+        int
+            degree amount turned, in 90 degree increments
+            i.e. returns 90, 180, 270, or 360
+
+        TODO
+        ----
+        still need to check cutoffs
         '''
-        prev_route = []
-        for dir in route:
-            prev_route.append(dir)
-            # print('continue')
-            # print(change_route[0])
-            # if change_route[0] == True:
-                
-            #     change_route[0] = False
-            #     print('we change')
-            #     prev_route.reverse()
-            #     for new_dir in prev_route:
-            #         self.turn(new_dir)
-            #         self.next_intersection(change_route)
-            #     break
-            self.turn(dir)
-            self.next_intersection(change_route)
+        # sign is negative for right spin, positive for left spin
+        spin_sign = -1 if spin_right else 1
+        # give motors a kick
+        self.spin_kick(spin_right)
+        # then do actual controlled spin in place
+        self.set_pwm(- spin_sign * pwm, spin_sign * pwm)
+        # initialize the outside led off flag to True (by assumption) (this
+        #   is for the timers we use later)
+        outside_LED_off = True
+        # initialize the following just to avoid python warnings
+        t1 = t2 = ratio = degrees = 0
+
+        # start global timer
+        start = time.perf_counter()
+        while True:
+            # read each LED detector
+            left, middle, right = self.detectors_status()
+
+            # wait for outside LED to hit black tape
+            if (
+                (not spin_right and left) or 
+                (spin_right and right)
+            ) and outside_LED_off:
+                # clock t1
+                t1 = time.perf_counter() - start
+                outside_LED_off = False
+
+            # wait for middle sensor to reach center of the black tape
+            #   we're spinning towards
+            if not left and middle and not right and not outside_LED_off:
+                # clock t2
+                t2 = time.perf_counter() - start
+                ratio = t2/(t2-t1)
+                break
+
+            # fail safe to break out of loop in case something goes wrong
+            if time.perf_counter() - start > 20:
+                # shouldn't ever hit this, but just in case
+                break
+
+        # stop motors
+        self.set_pwm(0,0)
+
+        # in theory, the width of the tape corresponds to around 20 degrees,
+        # so the the ratio of a spin in right angle increments to the spin
+        # of a single LED across the tape is 90/20 = 4.5, 180/20 = 9,
+        # 270/20 = 13.5, and 360/20 = 18
+        print(ratio)
+        if ratio < 5.9:
+            # should be around 4.5 in this case
+            degrees = 90
+        elif 5.9 <= ratio < 10.5:
+            # should be around 9 in this case
+            degrees = 180
+        elif 10.5 <= ratio < 14.1:
+            # should be around 13.5 in this case
+            degrees = 270
+        else:
+            degrees = 360
+        return degrees
+
+    def turn(self, direction: int) -> bool:
+        '''
+        turn in the specified direction
+
+        Parameters
+        ----------
+        value : int
+            0, --> forwards
+            1, --> left
+            2, --> backwards
+            3, --> right
+
+        Returns
+        -------
+        bool
+            True --> completed turn without having to abort
+            False --> have to abort current process because we have new info;
+                it's possible to have made a turn, but the turn to be
+                considered "aborted" if new info was collected on the map
+                during the process
+        '''
+        direction = direction % 4
+
+        # assess blockage prior to turning
+        if not self.assess_blockage():
+            return False
+
+        if direction == R:
+            # if attempting to turn right, snap should return 90 degrees
+            assert self.snap(True, SPIN_PWM) == 90
+        elif direction == L:
+            # if attempting to turn left, snap should return 90 degrees
+            assert self.snap(False, SPIN_PWM) == 90
+        elif direction == B:
+            # if attempting to turn around, get the amount turned:
+            #   could be 90 after first snap if there was black tape in path
+            #   will be 180 if no black tape in between path
+            # the choice to spin right is arbitrary
+            degree = self.snap(True, SPIN_PWM)
+
+            if degree == 90:
+                # scan while we're here i guess
+                self.heading = (self.heading + R)%4
+                if not self.assess_blockage():
+                    # abort if new info collected on map
+                    return False
+
+                # if there was black tape in bath, turn again and ensure
+                #   snap returns 90 degrees
+                assert self.snap(True, SPIN_PWM) == 90
+
+                # scan and update again
+                self.heading = (self.heading + R)%4
+                if not self.assess_blockage():
+                    # abort if new info collected on map
+                    return False
+
+                # if didn't have to abort, return here since there's lots
+                #   of edge case logic
+                return True
+            else:
+                # if attempting to around and there wasn't any black tape
+                # in between, snap should return 180 degrees
+                assert degree == 180
+
+        # update heading
+        self.heading = (self.heading + direction)%4
+        # assess blockage after turning
+        if not self.assess_blockage():
+            # abort if new info collected on map
+            return False
+
+        # if didn't have to abort during turn, report such
+        return True
+
+
+    ##############
+    ## scanning ##
+    ##############
+    def first_scan(self) -> List[int]:
+        '''
+        specifically for the first scan of a map building;
+        in particular, doesn't require black tape to be 180 degrees away;
+        check for adjacent streets at an intersection;
+        also updates map if obstacles are found (but doesn't abort)
+
+        Returns
+        -------
+        List[int]
+            length 4 list where each element indicates
+            if there is a street at [North, West, South, East].
+            -1 --> Unknown
+            0 --> no street
+            1 --> street exists
+        '''
+        # initialize street info
+        streets = [UNKNOWN] * 4
+
+        # check forward direction
+        streets[self.heading] = PRESENT if any(
+            self.detectors_status()
+        ) else ABSENT
+
+        # scan for forward obstacles
+        self.assess_blockage()
+
+        # set directions based on snap amount
+        turn_amount = self.snap(spin_right=True, pwm=SPIN_PWM)
+
+        if turn_amount == 90:
+            # turned right
+            # update heading
+            self.heading = (self.heading + R)%4
+            streets[self.heading] = PRESENT
+            # scan for right obstacles
+            self.assess_blockage()
+        elif turn_amount == 180:
+            # turned backwards
+            # update heading
+            self.heading = (self.heading + B)%4
+            streets[(self.heading + 1)%4] = ABSENT
+            streets[self.heading] = PRESENT
+            # scan for back obstacles
+            self.assess_blockage()
+        elif turn_amount == 270:
+            # turned left
+            # update heading
+            self.heading = (self.heading + L)%4
+            streets[(self.heading + 2)%4] = ABSENT
+            streets[(self.heading + 1)%4] = ABSENT
+            streets[self.heading] = PRESENT
+            # scan for left obstacles
+            self.assess_blockage()
+        else:
+            # facing forward
+            # update heading
+            self.heading = (self.heading + L)%4
+            streets[(self.heading + 3)%4] = ABSENT
+            streets[(self.heading + 2)%4] = ABSENT
+            streets[(self.heading + 1)%4] = ABSENT
+            # scan for forward obstacles again just for kicks
+            self.assess_blockage()
+
+        return streets
 
     def partial_scan(
         self,
         check_right: bool,
-        heading: int
-    ) -> Tuple[List[int], int]:
+    ) -> List[int]:
         '''
-        check for adjacent streets at an intersection
+        check for adjacent streets at an intersection;
+        also scans for obstacles (doesn't abort however)
 
         Parameters
         ----------
         spin_right : bool
             True --> check right street
             False --> check left street
-        heading : int
-            initial heading prior to scanning
 
         Preconditions
         -------------
@@ -710,6 +691,9 @@ class EEBot:
 
             second item is the new heading after scanning
         '''
+        # initial heading
+        initial_heading = self.heading
+
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
 
@@ -720,72 +704,203 @@ class EEBot:
 
         # check forward direction
         streets[F] = PRESENT if any(self.detectors_status()) else ABSENT
+        # scan for forward obstacles
+        self.assess_blockage()
 
         # check 90 degree direction
         direction = R if check_right else L
         turn_amount = self.snap(spin_right=check_right, pwm=SPIN_PWM)
+        # update heading:
+        #   if we didn't turn 90, we turned 180, so facing backwards
+        self.heading = (self.heading + direction)%4 if (
+            turn_amount == 90
+        ) else (self.heading + B)%4
+        # scan for obstacles
+        self.assess_blockage()
+        # update street info
         streets[direction] = PRESENT if turn_amount == 90 else ABSENT
 
-        # realign streets based on heading (so that they're [N, W, S, E]
-        streets = streets[-heading:] + streets[:-heading]
-
-        # readjust heading
-        if turn_amount == 90:
-            new_heading = (heading + direction) % 4
-        elif turn_amount == 180:
-            new_heading = (heading + B) % 4
-        else:
-            # turn_amount should be 90 or 180
-            assert False
+        # realign streets based on initial heading (so that they're 
+        #   [N, W, S, E])
+        streets = streets[-initial_heading:] + streets[:-initial_heading]
 
         # wait a beat to make it clear we're scanning
         time.sleep(0.5)
-        return (streets, new_heading)
+        return streets
 
-    def first_scan(self):
+
+    #########################
+    ## driving around town ##
+    #########################
+    def follow_directions(self, route: List[int]):
         '''
-        specifically the first scan of a map building
-        in particular, doesn't require black tape to be 180 degrees away
-        check for adjacent streets at an intersection
+        follow a sequence of turns like so:
+            turn1 --> drive straight --> turn2 --> drive straight --> ...
 
-        Preconditions
-        -------------
-        Assumes facing north
+        Parameters
+        ----------
+        route : List[int]
+            the sequence of turns (forward, left, backward, right) to follow
 
         Returns
         -------
-        Tuple[List[int], int]
-            first item is a length 4 list where each element indicates
-            if there is a street at [North, West, South, East].
-            -1 --> Unknown
-            0 --> no street
-            1 --> street exists
-
-            second item is the new heading after scanning
+        bool
+            True --> completed directions successfully
+            False --> have to abort current process because we have new info
         '''
-        streets = [UNKNOWN] * 4
+        for dir in route:
+            if not self.turn(dir):
+                # abort if turn was aborted
+                return False
+            if not self.next_intersection():
+                # abort if line following was aborted
+                return False
+        # success!
+        return True
 
-        # check forward direction
-        streets[N] = PRESENT if any(self.detectors_status()) else ABSENT
+    def goto(
+        self,
+        dest: map.Intersection
+    ) -> bool:
+        '''
+        sends eebot from current location to dest, if possible
+    
+        Parameters
+        ----------
+        start : Intersection
+            (long, lat) starting point
+        dest : Intersection
+            (long, lat) ending point
+    
+        Returns
+        -------
+        bool
+            True --> successfully went from current intersection to dest
+            False --> not possible
+        '''
+        # calculate shortest route (as far as we know)
+        route = self.map.shortest_route(self.intersection, dest)
+        if not route:
+            # if no way to get there, abort and await further instructions
+            return False
 
-        # set directions based on snap amount
-        turn_amount = self.snap(spin_right=True, pwm=SPIN_PWM)
-        if turn_amount == 90:
-            streets[E] = PRESENT
-            heading = E
-        elif turn_amount == 180:
-            streets[E] = ABSENT
-            streets[S] = PRESENT
-            heading = S
-        elif turn_amount == 270:
-            streets[E] = ABSENT
-            streets[S] = ABSENT
-            streets[W] = PRESENT
-            heading = W
-        else:
-            streets[E] = ABSENT
-            streets[S] = ABSENT
-            streets[W] = ABSENT
-            heading = N
+        # convert the route to directions
+        directions, _ = map.route_to_directions(route, self.heading)
+        # attempt to follow directions (may run into obstacle)
+        while not self.follow_directions(directions):
+            # keep trying until we get there
+            route = self.map.shortest_route(self.intersection, dest)
+            if not route:
+                # if no way to get there, abort and await further 
+                #   instructions
+                return False
+            directions, _ = map.route_to_directions(route, self.heading)
 
-        return (streets, heading)
+        # success!
+        return True
+
+    def find(
+        self,
+        dest: Tuple[int, int]
+    ):
+        '''
+        attempts to go from current intersection to dest in map that
+        hasn't necessarily been fully explored
+    
+        Parameters
+        ----------
+        dest : Tuple[int, int]
+            (long, lat) ending point
+        '''
+        def update_neighbors(
+            accessibility: int, 
+            neighbors: List[Tuple[int,int]]
+        ):
+            '''
+            updates neighbors of the current intersection after scan;
+            helper function for find
+
+            Parameters
+            ----------
+            accessibility : int
+                PRESENT or BLOCKED
+            neighbors: List[Tuple[int,int]]
+                list of neighbors coords: either accessible list or blocked 
+                list
+            '''
+            # update neighbors as well
+            for neighbor_coords in neighbors:
+                # get neighbor from coords in map (if it's in there)
+                neighbor = self.map.get_intersection(neighbor_coords)
+    
+                if neighbor:
+                    # this neighbor is already in map, so update streets
+                    neighbor.streets[
+                        neighbor.direction(self.intersection)
+                    ] = accessibility
+    
+                    # remove neighbor from come_back queue if necessary
+                    if (
+                        UNKNOWN not in neighbor.streets and 
+                        neighbor in self.come_back
+                    ):
+                        self.come_back.remove(neighbor)
+                else:
+                    # neighbor not yet in map, so initialize it
+                    neighbor = map.Intersection(neighbor_coords)
+                    neighbor.streets[
+                        neighbor.direction(self.intersection)
+                    ] = accessibility
+                    self.map.intersections.append(neighbor)
+    
+                    # we'll need to come back to this later
+                    self.come_back.append(neighbor)
+
+        while self.intersection != dest or self.come_back:
+            # next intersection to explore is at the top of the 
+            # come_back queue
+            next = self.come_back[0]
+            while not self.goto(next):
+                # rotate queue (putting the thing we were trying to goto
+                #   at the end)
+                self.come_back = self.come_back[1:] + self.come_back[:1]
+                next = self.come_back[0]
+
+            # if the street to the right is unknown, check right in scan
+            # otherwise, check left in scan
+            check_right = self.intersection.streets[
+                (self.heading + R)%4
+            ] == UNKNOWN
+            street_info = self.partial_scan(check_right)
+    
+            # update streets with new info
+            for d in range(len(self.intersection.streets)):
+                if street_info[d] != UNKNOWN:
+                    self.intersection.streets[d] = street_info[d]
+    
+            # update neighbors and blocked neighbors as well
+            update_neighbors(PRESENT, self.intersection.neighbors())
+            update_neighbors(BLOCKED, self.intersection.blocked_neighbors())
+    
+            self.come_back.remove(self.intersection)
+
+            # sort come_back queue based on closest to dest
+            self.come_back.sort(key = lambda i: i.distance(dest))
+
+            # check if we need to come back to current at some point
+            if UNKNOWN in self.intersection.streets:
+                self.come_back.append(self.intersection)
+
+
+
+    ############################
+    ## shutdown everything :( ##
+    ############################
+    def shutdown(self):
+        '''stops robot'''
+        print("Turning off...")
+
+        for pin in self.motors:
+            self.io.set_PWM_dutycycle(pin, 0)
+
+        self.io.stop()

@@ -1,4 +1,15 @@
+'''
+controls triggering of ultrasonic sensors
+
+Classes
+-------
+Ultrasonic: ultrasonic sensors
+'''
+
+# utility libraries
 import time
+
+# other libraries
 import pigpio
 
 #ECHO_TRIGGER = [(36,33), (38,35), (40,37)] #This is not GPIO compatible
@@ -20,125 +31,72 @@ class Ultrasonic:
     start_time : List[int]
         list of time at which trigger is sent, for each sensor
 	cbrise : List[]
-	  list of rising callback functions
+	    list of rising callback functions
 	cbfall : List[]
-	  list of falling callback functions
-    herd_directions : List[str]
-        directions to turn
-        'turn_right'
-        'turn_left'
-        'stay_straight'
-    '''
+	    list of falling callback functions
+    io : pigpio.io
+        pi gpio instance
 
-    
-    def __init__(self, passed_io):
+    Methods
+    -------
+    rising(i, gpio, level, tick): starts sensor i and awaits fall
+    falling(i, gpio, level, tick): detects fall on sensor i
+    trigger(): sends ultrasonic trigger
+    shutdown_ultrasonic(): cancels callbacks for each ultrasonic sensor
+    '''
+    def __init__(self, passed_io: pigpio.pi):
         self.state = ['ready', 'ready', 'ready']
         self.distance = [0, 0, 0]
         self.start_time = [0, 0, 0]
         self.cbrise = []
         self.cbfall = []
         self.io = passed_io
-        self.herd_directions = ['straight', 'straight', 'straight']
         
         for echo, trig in ECHO_TRIGGER:
             # Set up the two pins as output/input.
             self.io.set_mode(trig, pigpio.OUTPUT)
             self.io.set_mode(echo, pigpio.INPUT)
+
         # Set up the interrupt handlers or callbacks.
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.RISING_EDGE, self.rising_0))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[0][0], pigpio.FALLING_EDGE, self.falling_0))
-        
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.RISING_EDGE, self.rising_1))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[1][0], pigpio.FALLING_EDGE, self.falling_1))
-        
-        self.cbrise.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.RISING_EDGE, self.rising_2))
-        self.cbfall.append(self.io.callback(ECHO_TRIGGER[2][0], pigpio.FALLING_EDGE, self.falling_2))
+        self.cbrise.extend([
+            self.io.callback(
+                ECHO_TRIGGER[i][0],
+                pigpio.RISING_EDGE,
+                lambda gpio, level, tick: self.rising(i, gpio, level, tick)
+            )
+            for i in range(len(ECHO_TRIGGER))
+        ])
 
-    #we can ignore level
-    def rising_0(self, gpio, level, tick):
+        self.cbrise.extend([
+            self.io.callback(
+                ECHO_TRIGGER[i][0],
+                pigpio.FALLING_EDGE,
+                lambda gpio, level, tick: self.falling(i, gpio, level, tick)
+            )
+            for i in range(len(ECHO_TRIGGER))
+        ])
+
+    def rising(self, i, gpio, level, tick):
         '''
-        Records the start time for sensor 0, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
+        Records the start time for sensor i, which is when the echo is 
+        pulled high. Sets the state to 'await_fall'.
         '''
-        if self.state[0] == 'await_rise':
+        if self.state[i] == 'await_rise':
             #start the timer
-            self.start_time[0] = tick
-            self.state[0] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 0')
+            self.start_time[i] = tick
+            self.state[i] = 'await_fall'
 
-                
-    def falling_0(self, gpio, level, tick):
+    def falling(self, i, gpio, level, tick):
         '''
 	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 0. Sets state to 'ready'.
+	    edge is sensed for sensor i. Sets state to 'ready'.
         '''
-        if self.state[0] == 'await_fall':
+        if self.state[i] == 'await_fall':
             end_time = tick
-            delta_t = end_time - self.start_time[0]
+            delta_t = end_time - self.start_time[i]
             dist = 343/2 * delta_t * 1e-6
             self.distance[0] = dist
             self.state[0] = 'ready' 
-        # else:
-        #     raise Exception('illegal fall 0')
-
-#we can ignore level
-    def rising_1(self, gpio, level, tick):
-        '''
-        Records the start time for sensor 1, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
-        '''
-        if self.state[1] == 'await_rise':
-            #start the timer
-            self.start_time[1] = tick
-            self.state[1] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 1')
-
-                
-    def falling_1(self, gpio, level, tick):
-        '''
-	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 1. Sets state to 'ready'.
-        '''
-        if self.state[1] == 'await_fall':
-            end_time = tick
-            delta_t = end_time - self.start_time[1]
-            dist = 343/2 * delta_t * 1e-6
-            self.distance[1] = dist
-            self.state[1] = 'ready' 
-        # else:
-        #     raise Exception('illegal fall 1')
-
-#we can ignore level
-    def rising_2(self, gpio, level, tick):
-        '''
-        Records the start time for sensor 2, which is when the echo is pulled high.
-        Sets the state to 'await_fall'.
-        '''
-        if self.state[2] == 'await_rise':
-            #start the timer
-            self.start_time[2] = tick
-            self.state[2] = 'await_fall'
-        # else:
-        #     raise Exception('illegal rise 2')
-
-                
-    def falling_2(self, gpio, level, tick):
-        '''
-	    Computes distance detected based on the time the falling
-	    edge is sensed for sensor 2. Sets state to 'ready'.
-        '''
-        if self.state[2] == 'await_fall':
-            end_time = tick
-            delta_t = end_time - self.start_time[2]
-            dist = 343/2 * delta_t * 1e-6
-            self.distance[2] = dist
-            self.state[2] = 'ready' 
-        # else:
-
-        #     raise Exception('illegal fall 2')
-
 
     def trigger(self):
         '''
@@ -156,16 +114,12 @@ class Ultrasonic:
                 self.io.write(trig, 0)
                 # Update state to await rising
                 self.state[counter] = 'await_rise'
-            #else:
-            #    raise Exception(f'illegal trigger {counter}' + str(self.state))
-        #  time.sleep(.1)
-
 
     def shutdown_ultrasonic(self):
         '''
         Cancels callback functions for each sensor.
         '''
-        for i in range(3):
+        for i in range(len(ECHO_TRIGGER)):
             self.cbrise[i].cancel()
             self.cbfall[i].cancel()
 

@@ -27,6 +27,9 @@ import json
 import random
 import sys
 
+# other libraries
+import matplotlib.pyplot as plt
+
 
 ###############
 ### classes ###
@@ -53,6 +56,7 @@ class Intersection:
     Methods
     -------
     copy(): creates a copy of this object
+    visualize(): uses matplotlib to visualize the intersection
     neighbors(): gets the intersection's accessible neighbors (list of 
         coordinate tuples)
     blocked_neighbors(): same as neighbors, but for inaccessible neighbors
@@ -117,6 +121,46 @@ class Intersection:
         '''creates a copy of this object'''
         return Intersection(self.coords, self.blocked, self.streets)
 
+    def visualize(self):
+        '''
+        plots intersection on a matplotlib graph as follows:
+            point placed at coords:
+                black --> accessible
+                red --> blocked
+            line connecting intersection to neighbors:
+                absent --> absent
+                black dotted --> unknown
+                black solid --> present
+                red --> blocked
+        '''
+        # plot point at coords
+        plt.plot(
+            self.coords[0], 
+            self.coords[1], 
+            marker = 'o', 
+            ms = 10,
+            color = 'red' if self.blocked else 'black'
+        )
+
+        for dir, status in enumerate(self.streets):
+            if not status:
+                # street doesn't exist, so don't plot anything
+                continue
+
+            diff = dir_to_diff[dir]
+            # get adjacent coords
+            adjacent_coords = (
+                self.coords[0] + diff[0],
+                self.coords[1] + diff[1]
+            )
+            print(self.coords, adjacent_coords)
+
+            plt.plot(
+                [self.coords[0]] + [adjacent_coords[0]],
+                [self.coords[1]] + [adjacent_coords[1]],
+                linestyle = '--' if status == UNKNOWN else '-',
+                color = 'red' if status == BLOCKED else 'black'
+            )
 
     ###############
     ## neighbors ##
@@ -210,6 +254,7 @@ class Map:
     Methods
     -------
     copy(): creates a copy of this object
+    visualize(): visualize map using maplotlib
     shortest_route(src, dest): computes shortest route from src to dest
     get_intersection(coords): gets the intersection based on coordinate
         tuple, if it exists in the map
@@ -265,6 +310,22 @@ class Map:
     def copy(self) -> Map:
         '''creates copy of this object'''
         return Map([i.copy() for i in self.intersections])
+
+    def visualize(self):
+        '''
+        plots map on a matplotlib graph as follows:
+            intersection points:
+                black --> accessible
+                red --> blocked
+            street connecting intersections:
+                absent --> absent
+                black dotted --> unknown
+                black solid --> present
+                red --> blocked
+        '''
+        for intersection in self.intersections:
+            intersection.visualize()
+        plt.show()
 
     def is_valid(self) -> bool:
         '''

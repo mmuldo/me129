@@ -812,6 +812,13 @@ class EEBot:
         dest : Tuple[int, int]
             (long, lat) ending point
         '''
+        # check if we already know everything about the dest intersection
+        dest_int = self.map.get_intersection(dest)
+        if dest_int and UNKNOWN not in dest_int.streets:
+            # if so, just goto it
+            return self.goto(dest_int)
+
+        # helper function
         def update_neighbors(
             accessibility: int, 
             neighbors: List[Tuple[int,int]]

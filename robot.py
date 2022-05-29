@@ -107,7 +107,7 @@ class EEBot:
         passed_io: pigpio.pi,
         botMap: map.Map = None,
         intersection: map.Intersection = map.Intersection((0,0)),
-        heading: int = N,
+        heading: int = S,
         come_back: List[map.Intersection] = None,
         L: float = 0.103,
         d: float = 0.131,
@@ -118,16 +118,21 @@ class EEBot:
         ----------
         passed_io : pigpio.pi
             pi gpio instance
-        botMap : map.Map
+        botMap : map.Map, optional
             the map that the robot is traversing/exploring
-        intersection : map.Intersection
+            default is map containing only current intersection
+        intersection : map.Intersection, optional
             robot's current interseciton
-        heading : int
+            default is (0,0), unblocked, with unknown streets
+        heading : int, optional
             robot's current heading
-        L : float
+            default is S
+        L : float, optional
             length in m from wheels to ball bearing
-        d : float
+            default is what we measured in lab
+        d : float, optional
             length in m between wheels
+            default is what we measured in lab
         '''
         self.motors = [pin for motor in MOTOR_PINS for pin in motor]
         self.LED_detectors = list(LED_PINS.keys())
@@ -336,9 +341,14 @@ class EEBot:
 
         self.set_pwm(0,0)
 
-    def next_intersection(self) -> bool:
+    def next_intersection(self, visualize: bool = False) -> bool:
         '''
         sends eebot to next intersection
+
+        Parameters
+        ----------
+        visualize : bool, optional
+            if true, will update the matplotlib visualization of the map
 
         Preconditions
         -------------
@@ -361,6 +371,8 @@ class EEBot:
             if self.ultra.distance[1] < STR_BLOCKED_DIST:
                 # this is called to update the map
                 self.assess_blockage(moving=True)
+                if visualize:
+                    self.map.visualize()
 
                 # turn around
                 self.turn(B)
@@ -517,7 +529,7 @@ class EEBot:
             degrees = 360
         return degrees
 
-    def turn(self, direction: int) -> bool:
+    def turn(self, direction: int, visualize: bool = False) -> bool:
         '''
         turn in the specified direction
 
@@ -528,6 +540,8 @@ class EEBot:
             1, --> left
             2, --> backwards
             3, --> right
+        visualize : bool, optional
+            set to true to update and view map visualization during turn
 
         Returns
         -------
@@ -542,6 +556,8 @@ class EEBot:
 
         # assess blockage prior to turning
         if not self.assess_blockage():
+            if visualize:
+                self.map.visualize()
             return False
 
         if direction == R:
@@ -561,6 +577,8 @@ class EEBot:
                 # scan while we're here i guess
                 self.heading = (self.heading + R)%4
                 if not self.assess_blockage():
+                    if visualize:
+                        self.map.visualize()
                     # abort if new info collected on map
                     return False
 
@@ -571,6 +589,8 @@ class EEBot:
                 # scan and update again
                 self.heading = (self.heading + R)%4
                 if not self.assess_blockage():
+                    if visualize:
+                        self.map.visualize()
                     # abort if new info collected on map
                     return False
 
@@ -586,6 +606,8 @@ class EEBot:
         self.heading = (self.heading + direction)%4
         # assess blockage after turning
         if not self.assess_blockage():
+            if visualize:
+                self.map.visualize()
             # abort if new info collected on map
             return False
 
@@ -732,7 +754,7 @@ class EEBot:
     #########################
     ## driving around town ##
     #########################
-    def follow_directions(self, route: List[int]):
+    def follow_directions(self, route: List[int], visualize: bool = False):
         '''
         follow a sequence of turns like so:
             turn1 --> drive straight --> turn2 --> drive straight --> ...
@@ -741,6 +763,9 @@ class EEBot:
         ----------
         route : List[int]
             the sequence of turns (forward, left, backward, right) to follow
+        visualize : bool, optional
+            set to true to update/view map vizualization while following
+            directions
 
         Returns
         -------
@@ -749,10 +774,10 @@ class EEBot:
             False --> have to abort current process because we have new info
         '''
         for dir in route:
-            if not self.turn(dir):
+            if not self.turn(dir, visualize):
                 # abort if turn was aborted
                 return False
-            if not self.next_intersection():
+            if not self.next_intersection(visualize):
                 # abort if line following was aborted
                 return False
         # success!
@@ -760,7 +785,8 @@ class EEBot:
 
     def goto(
         self,
-        dest: map.Intersection
+        dest: map.Intersection,
+        visualize: bool = False
     ) -> bool:
         '''
         sends eebot from current location to dest, if possible
@@ -771,6 +797,8 @@ class EEBot:
             (long, lat) starting point
         dest : Intersection
             (long, lat) ending point
+        visualize : bool, optional
+            set to true to update/view map vizualization while traveling
     
         Returns
         -------
@@ -787,7 +815,7 @@ class EEBot:
         # convert the route to directions
         directions, _ = map.route_to_directions(route, self.heading)
         # attempt to follow directions (may run into obstacle)
-        while not self.follow_directions(directions):
+        while not self.follow_directions(directions, visualize):
             # keep trying until we get there
             route = self.map.shortest_route(self.intersection, dest)
             if not route:
@@ -801,7 +829,8 @@ class EEBot:
 
     def find(
         self,
-        dest: Tuple[int, int]
+        dest: Tuple[int, int],
+        visualize: bool = False
     ):
         '''
         attempts to go from current intersection to dest in map that
@@ -811,12 +840,19 @@ class EEBot:
         ----------
         dest : Tuple[int, int]
             (long, lat) ending point
+        visualize : bool, optional
+            set to true to update/view map vizualization while traveling
+
+        Preconditions
+        -------------
+        assumes there is black tape behind bot to start (so we can snap to 
+            tape that is 180 degrees)
         '''
         # check if we already know everything about the dest intersection
         dest_int = self.map.get_intersection(dest)
         if dest_int and UNKNOWN not in dest_int.streets:
             # if so, just goto it
-            return self.goto(dest_int)
+            return self.goto(dest_int, visualize)
 
         # helper function
         def update_neighbors(
@@ -867,7 +903,8 @@ class EEBot:
             # next intersection to explore is at the top of the 
             # come_back queue
             next = self.come_back[0]
-            while not self.goto(next):
+            while not self.goto(next, visualize):
+                # if we failed to get to next...
                 # rotate queue (putting the thing we were trying to goto
                 #   at the end)
                 self.come_back = self.come_back[1:] + self.come_back[:1]
@@ -888,6 +925,10 @@ class EEBot:
             # update neighbors and blocked neighbors as well
             update_neighbors(PRESENT, self.intersection.neighbors())
             update_neighbors(BLOCKED, self.intersection.blocked_neighbors())
+
+            # update map visualization
+            if visualize:
+                self.map.visualize()
     
             self.come_back.remove(self.intersection)
 

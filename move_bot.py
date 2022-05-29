@@ -1,52 +1,104 @@
 #!/usr/bin/env python3
-import time
-import robot
+'''
+driver for eebot
+'''
+
+# project libraries
+from util import *
 import map
-import mapbuilder
+import robot
+import tests
+
+# utility libraries
+import time
 import json
-import util
 import random
-import threading 
-import demo
+
+# other libraries
 import pigpio
 
-passed_io = pigpio.pi()
-control = robot.EEBot(passed_io)
-
-N = 0
-W = 1
-S = 2
-E = 3
-map_l2 = {}
-
-change_route = [False]
-
+def driver():
+    '''driver function (put main code here)'''
+    control = robot.EEBot(pigpio.pi())
+    try:
+        # stuff goes here
+        pass
+    except BaseException as ex:
+        print('uh oh...theres an exception')
+        control.ultra.shutdown_ultrasonic()
+        control.shutdown()
+        print('heres the traceback:')
+        raise ex
 
 if __name__ == "__main__":
+    # commented out, because I put the tests here
+    # driver()
 
-    try:
-        #create the map
-#         map_l2 = mapbuilder.build_map(control,N,(0,0))
-#         json_str = json.dumps(util.map_to_dict(map_l2))
-#         with open('map_l2.json', 'w') as file:
-#             file.write(json_str)
-#         #print(map_l2)
-    #load the map
 
-        time.sleep(.5)
-        loaded_map = util.load_map('map_l2.json')
-        #TODO MATTHEW we need to recall the next function but with our changed route.
-        #i suggest that we save changes dynamically to a file such as map_l2_updates.json??
-        #that way we dont overwrite our original map, or just as an object?
+    #############
+    ### TESTS ###
+    #############
+    # peform each one one at a time.
+    # for each test, I recommend:
+    #   1. testing without any obstacles (to make sure stuff still works)
+    #   2. testing multiple times, each time with a different obstacle
+    #       configuration
+    # MAKE SURE YOU CHECK THE LEDS ARE CALIBRATED BEFORE STARTING.
 
-        #while(1): put the map builder in a while??
-        mapbuilder.wrapped_goto(loaded_map, control, change_route, N, (0,0), (1,1))
+    #####################
+    ## assess_blockage ##
+    #####################
+    tests.TestAssesBlockage.square_origin_N()
+    #tests.TestAssesBlockage.square_11_W()
+    #tests.TestAssesBlockage.l2_21_E()
+    #tests.TestAssesBlockage.l2_32_S()
 
-       # get the bot moving initially
-    except BaseException as ex:
-       print("Ending due to exception: %s" % repr(ex))
+    #######################
+    ## next_intersection ##
+    #######################
+    #tests.TestNextIntersection.square_origin_N()
+    #tests.TestNextIntersection.square_11_W()
+    #tests.TestNextIntersection.l2_21_E()
+    #tests.TestNextIntersection.l2_32_S()
 
-    control.shutdown_ultrasonic()
-    control.set_pwm(0,0)
-    control.shutdown()
-   
+    ##########
+    ## turn ##
+    ##########
+    #tests.TestTurn.square_origin_N_R()
+    #tests.TestTurn.square_origin_N_F()
+    #tests.TestTurn.square_11_W_L()
+    #tests.TestTurn.l2_21_N_B()
+    #tests.TestTurn.l2_32_S_R()
+
+    #######################
+    ## follow_directions ##
+    #######################
+    #tests.TestFollowDirections.square_origin_S_BRBL()
+    #tests.TestFollowDirections.l2_11_N_FRFRRLRR()
+
+    ##########
+    ## goto ##
+    ##########
+    #tests.TestGoto.square_origin_N_11()
+    #tests.TestGoto.square_origin_N_10()
+    #tests.TestGoto.l2_origin_N_30()
+    #tests.TestGoto.l2_30_S_02()
+
+    ##################
+    ## partial_scan ##
+    ##################
+    #tests.TestPartialScan.square_origin_S_checkR()
+    #tests.TestPartialScan.square_origin_S_checkL()
+    #tests.TestPartialScan.l2_21_N_checkR()
+    #tests.TestPartialScan.l2_21_N_checkL()
+
+    ##########
+    ## find ##
+    ##########
+    #tests.TestFind.square_origin_S_11()
+    #tests.TestFind.square_origin_S_11_then_origin()
+    #tests.TestFind.square_origin_S_11_then_10()
+    #tests.TestFind.l1p_origin_S_22()
+    #tests.TestFind.l1p_origin_S_22_then_20()
+    #tests.TestFind.l1p_origin_S_22_then_20_then_01()
+    #tests.TestFind.l1p_origin_S_22_then_20_then_01_then_30()

@@ -129,8 +129,8 @@ class Intersection:
                 red --> blocked
             line connecting intersection to neighbors:
                 absent --> absent
-                black dotted --> unknown
-                black solid --> present
+                gray --> unknown
+                black --> present
                 red --> blocked
         '''
         # plot point at coords
@@ -153,13 +153,17 @@ class Intersection:
                 self.coords[0] + diff[0],
                 self.coords[1] + diff[1]
             )
-            print(self.coords, adjacent_coords)
+
+            color = 'black'
+            if status == UNKNOWN:
+                color = 'gray'
+            elif status == BLOCKED:
+                color = 'red'
 
             plt.plot(
                 [self.coords[0]] + [adjacent_coords[0]],
                 [self.coords[1]] + [adjacent_coords[1]],
-                linestyle = '--' if status == UNKNOWN else '-',
-                color = 'red' if status == BLOCKED else 'black'
+                color = color
             )
 
     ###############
@@ -323,9 +327,13 @@ class Map:
                 black solid --> present
                 red --> blocked
         '''
+        # TODO: not sure the best way to update the plot, but this seems
+        #   to work
+        plt.close()
         for intersection in self.intersections:
             intersection.visualize()
-        plt.show()
+        plt.draw()
+        plt.pause(0.01)
 
     def is_valid(self) -> bool:
         '''

@@ -203,7 +203,7 @@ class EEBot:
 
         # return if the forward neighbor is neither registered as 
         # present or blocked
-        print(self.intersection)
+        print(self.intersection, 'intersection')
         if not self.intersection.streets[self.heading] > ABSENT:
             return True
 
@@ -232,6 +232,7 @@ class EEBot:
         # if stationary, we can more accurately distinguish between
         # a blocked intersection vs a blocked street.
         # the first step is to try and detect an intersection blockage
+        print(forward_neighbor, 'neighbor')
         forward_neighbor.blocked = dist_to_obstacle < INT_BLOCKED_DIST
 
         # next, try and detect a street blockage, and update the street info

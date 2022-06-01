@@ -241,7 +241,7 @@ class TestFollowDirections:
         TestFollowDirections.base_test(
             'maps/square.json',
             (0,0),
-            N,
+            S,
             [B, R, B, L]
         )
 

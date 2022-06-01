@@ -42,7 +42,7 @@ LED_PINS = {
 # motor consts
 SPIN_PWM = 0.7
 LIN_SPEED = 0.35
-NEXT_INT_OVERSHOOT = 0.14 # seconds
+NEXT_INT_OVERSHOOT = 0.08 # seconds
 
 
 ###############
@@ -203,7 +203,6 @@ class EEBot:
 
         # return if the forward neighbor is neither registered as 
         # present or blocked
-        print(self.intersection, 'intersection')
         if not self.intersection.streets[self.heading] > ABSENT:
             return True
 
@@ -212,6 +211,13 @@ class EEBot:
             self.intersection
         )[self.heading]
         
+#         print('t', self.map.neighbors(
+#             self.intersection
+#         ))
+#         
+#         print('h', self.heading)
+        if forward_neighbor == None:
+            return True
 
 
         # read ultrasound
@@ -232,7 +238,6 @@ class EEBot:
         # if stationary, we can more accurately distinguish between
         # a blocked intersection vs a blocked street.
         # the first step is to try and detect an intersection blockage
-        print(forward_neighbor, 'neighbor')
         forward_neighbor.blocked = dist_to_obstacle < INT_BLOCKED_DIST
 
         # next, try and detect a street blockage, and update the street info
@@ -566,6 +571,7 @@ class EEBot:
         if not self.assess_blockage():
             if visualize:
                 self.map.visualize()
+            print('fail')
             return False
 
         if direction == R:

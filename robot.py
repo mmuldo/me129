@@ -136,8 +136,10 @@ class EEBot:
         '''
         self.motors = [pin for motor in MOTOR_PINS for pin in motor]
         self.LED_detectors = list(LED_PINS.keys())
+        self.map = botMap
         self.intersection = intersection
         self.heading = heading
+        self.come_back = come_back
         self.L = L
         self.d = d
         self.io = passed_io

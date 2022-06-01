@@ -210,12 +210,13 @@ class EEBot:
         forward_neighbor = self.map.neighbors(
             self.intersection
         )[self.heading]
+        
+
 
         # read ultrasound
         self.ultra.trigger()
         dist_to_obstacle = self.ultra.distance[1]
-        print(dist_to_obstacle)
-        print(INT_BLOCKED_DIST)
+
         # if moving and we see an obstacle, the best we can do is assume 
         # intersection is blocked (and not the street)
         if moving:

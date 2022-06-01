@@ -176,12 +176,21 @@ class Intersection:
         neighs = []
         if self.streets[N] == PRESENT:
             neighs.append((self.coords[0], self.coords[1] + 1))
+        else:
+            neighs.append(None)
         if self.streets[W] == PRESENT:
             neighs.append((self.coords[0] - 1, self.coords[1]))
+        else:
+            neighs.append(None)
         if self.streets[S] == PRESENT:
             neighs.append((self.coords[0], self.coords[1] - 1))
+        else:
+            neighs.append(None)
         if self.streets[E] == PRESENT:
             neighs.append((self.coords[0] + 1, self.coords[1]))
+        else:
+            neighs.append(None)
+            #DYLAN - I added None if there is no intersection
         return neighs
 
     def blocked_neighbors(self) -> List[Tuple[int, int]]:

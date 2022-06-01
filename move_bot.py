@@ -48,7 +48,7 @@ if __name__ == "__main__":
     #####################
     ## assess_blockage ##
     #####################
-    tests.TestAssesBlockage.square_origin_N()
+    #tests.TestAssesBlockage.square_origin_N()
     #tests.TestAssesBlockage.square_11_W()
     #tests.TestAssesBlockage.l2_21_E()
     #tests.TestAssesBlockage.l2_32_S()
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     #######################
     ## follow_directions ##
     #######################
-    #tests.TestFollowDirections.square_origin_S_BRBL()
+    tests.TestFollowDirections.square_origin_S_BRBL()
     #tests.TestFollowDirections.l2_11_N_FRFRRLRR()
 
     ##########

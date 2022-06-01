@@ -42,7 +42,7 @@ LED_PINS = {
 # motor consts
 SPIN_PWM = 0.7
 LIN_SPEED = 0.35
-NEXT_INT_OVERSHOOT = 0.14/.25 # seconds
+NEXT_INT_OVERSHOOT = 0.14 # seconds
 
 
 ###############
@@ -377,6 +377,7 @@ class EEBot:
                 self.assess_blockage(moving=True)
                 if visualize:
                     self.map.visualize()
+                    print('VISUALIZE')
 
                 # turn around
                 self.turn(B)
@@ -389,18 +390,19 @@ class EEBot:
                 return False
 
             # normal line following
+            print('LINE FOLLOW')
             if not left and middle and not right:
                 # keep going straight
                 self.set(LIN_SPEED, 0)
-                count = 0
+                #count = 0
             elif not left and right:
                 # veer right
-                self.set(0.25, -90)
-                count = 0
+                self.set(0.5, -10)
+                #count = 0
             elif left and not right:
                 # veer left
-                self.set(0.25, 90)
-                count = 0
+                self.set(0.5, 10)
+                #count = 0
             elif left and middle and right:
                 # reached intersection
                 # drive forward a little so wheels are over intersection

@@ -76,6 +76,8 @@ if __name__ == "__main__":
     tests.TestFollowDirections.square_origin_S_BRBL()
     #tests.TestFollowDirections.l2_11_N_FRFRRLRR()
 
+    #tests.list_threads()
+
     ##########
     ## goto ##
     ##########

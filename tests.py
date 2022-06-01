@@ -35,9 +35,7 @@ class TestAssesBlockage:
                 heading=heading,
                 come_back=[]
             )
-            # Dylan did this
-            # inter = map.Intersection([0,0],False,[1,-1,-1,-1])
-            # control.goto(inter)
+            
            
             print('ASSESS BLOCKAGE TEST')
             # 'True' -> map didn't change

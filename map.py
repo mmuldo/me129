@@ -177,20 +177,20 @@ class Intersection:
         if self.streets[N] == PRESENT:
             neighs.append((self.coords[0], self.coords[1] + 1))
         else:
-            neighs.append(None)
+            neighs.append(ABSENT)
         if self.streets[W] == PRESENT:
             neighs.append((self.coords[0] - 1, self.coords[1]))
         else:
-            neighs.append(None)
+            neighs.append(ABSENT)
         if self.streets[S] == PRESENT:
             neighs.append((self.coords[0], self.coords[1] - 1))
         else:
-            neighs.append(None)
+            neighs.append(ABSENT)
         if self.streets[E] == PRESENT:
             neighs.append((self.coords[0] + 1, self.coords[1]))
         else:
-            neighs.append(None)
-            #DYLAN - I added None if there is no intersection
+            neighs.append(ABSENT)
+            #DYLAN - I added ABSENT if there is no intersection
         return neighs
 
     def blocked_neighbors(self) -> List[Tuple[int, int]]:
@@ -200,12 +200,20 @@ class Intersection:
         neighs = []
         if self.streets[N] == BLOCKED:
             neighs.append((self.coords[0], self.coords[1] + 1))
+        else:
+            neighs.append(ABSENT)
         if self.streets[W] == BLOCKED:
             neighs.append((self.coords[0] - 1, self.coords[1]))
+        else:
+            neighs.append(ABSENT)
         if self.streets[S] == BLOCKED:
             neighs.append((self.coords[0], self.coords[1] - 1))
+        else:
+            neighs.append(ABSENT)
         if self.streets[E] == BLOCKED:
             neighs.append((self.coords[0] + 1, self.coords[1]))
+        else:
+            neighs.append(ABSENT)
         return neighs
 
     

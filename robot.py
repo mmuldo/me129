@@ -203,6 +203,7 @@ class EEBot:
 
         # return if the forward neighbor is neither registered as 
         # present or blocked
+        print(self.intersection)
         if not self.intersection.streets[self.heading] > ABSENT:
             return True
 
@@ -390,7 +391,6 @@ class EEBot:
                 return False
 
             # normal line following
-            print('LINE FOLLOW')
             if not left and middle and not right:
                 # keep going straight
                 self.set(LIN_SPEED, 0)
@@ -422,7 +422,8 @@ class EEBot:
                     self.heading
                 )
                 # current intersection should be valid and not None
-                assert self.intersection
+                #assert self.intersection is not None 
+                #ignore for now??? DYLAN
 
                 # successfully reached next intersection
                 return True

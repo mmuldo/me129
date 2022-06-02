@@ -403,11 +403,11 @@ class EEBot:
                 #count = 0
             elif not left and right:
                 # veer right
-                self.set(0.4, -5)
+                self.set(0.4, -4)
                 #count = 0
             elif left and not right:
                 # veer left
-                self.set(0.4, 5)
+                self.set(0.4, 4)
                 #count = 0
             elif left and middle and right:
                 # reached intersection

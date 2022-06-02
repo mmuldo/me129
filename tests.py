@@ -329,7 +329,8 @@ class TestPartialScan:
         map_filename: str,
         coords: Tuple[int, int],
         heading: int,
-        check_right: bool
+        check_right: bool,
+        dest #Dylan add dest
     ):
         '''base test function'''
         try:
@@ -363,23 +364,23 @@ class TestPartialScan:
 
     @staticmethod
     def square_origin_S_checkR():
-        '''square map, at origin, facing S, check right'''
-        TestPartialScan.base_test('maps/square.json', (0,0), S, True)
+        '''square map, at origin, facing S, check right, destination'''
+        TestPartialScan.base_test('maps/square.json', (0,0), S, True, (1,1))
 
     @staticmethod
     def square_origin_S_checkL():
         '''square map, at origin, facing S, check left'''
-        TestPartialScan.base_test('maps/square.json', (0,0), S, False)
+        TestPartialScan.base_test('maps/square.json', (0,0), S, False, (1,1))
 
     @staticmethod
     def l2_21_N_checkR():
         '''l2 map, at (2,1), facing N, check right'''
-        TestPartialScan.base_test('maps/map_l2.json', (2,1), N, True)
+        TestPartialScan.base_test('maps/map_l2.json', (2,1), N, True, (1,1))
 
     @staticmethod
     def l2_21_N_checkL():
         '''l2 map, at (2,1), facing N, check left'''
-        TestPartialScan.base_test('maps/map_l2.json', (2,1), N, False)
+        TestPartialScan.base_test('maps/map_l2.json', (2,1), N, False, (1,1))
 
 
 class TestFind:

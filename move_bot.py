@@ -80,7 +80,7 @@ if __name__ == "__main__":
     ##########
     ## goto ##
     ##########
-    tests.TestGoto.square_origin_N_11()
+    #tests.TestGoto.square_origin_N_11()
     #tests.TestGoto.square_origin_N_10()
     #tests.TestGoto.l2_origin_N_30()
     #tests.TestGoto.l2_30_S_02()
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     ##################
     ## partial_scan ##
     ##################
-    #tests.TestPartialScan.square_origin_S_checkR()
+    tests.TestPartialScan.square_origin_S_checkR()
     #tests.TestPartialScan.square_origin_S_checkL()
     #tests.TestPartialScan.l2_21_N_checkR()
     #tests.TestPartialScan.l2_21_N_checkL()

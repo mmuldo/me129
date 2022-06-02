@@ -597,7 +597,11 @@ class Map:
             # of the picked intersection only if the current
             # distance is greater than new distance and
             # the intersection in not in the shortest path tree
+            
             for neighbor in self.neighbors(x):
+                #Dylan - case of if no neighbor
+                if neighbor is None:
+                    continue
                 if (
                     not neighbor.blocked and 
                     not visited[neighbor] and 

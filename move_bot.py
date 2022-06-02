@@ -72,7 +72,7 @@ if __name__ == "__main__":
     #######################
     ## follow_directions ##
     #######################
-    tests.TestFollowDirections.square_origin_S_BRBL()
+    #tests.TestFollowDirections.square_origin_S_BRBL()
     #tests.TestFollowDirections.l2_11_N_FRFRRLRR()
 
     #tests.list_threads()
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     ##########
     ## goto ##
     ##########
-    #tests.TestGoto.square_origin_N_11()
+    tests.TestGoto.square_origin_N_11()
     #tests.TestGoto.square_origin_N_10()
     #tests.TestGoto.l2_origin_N_30()
     #tests.TestGoto.l2_30_S_02()

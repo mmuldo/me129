@@ -88,7 +88,7 @@ if __name__ == "__main__":
     ##################
     ## partial_scan ##
     ##################
-    tests.TestPartialScan.square_origin_S_checkR()
+    #tests.TestPartialScan.square_origin_S_checkR()
     #tests.TestPartialScan.square_origin_S_checkL()
     #tests.TestPartialScan.l2_21_N_checkR()
     #tests.TestPartialScan.l2_21_N_checkL()
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     ##########
     ## find ##
     ##########
-    #tests.TestFind.square_origin_S_11()
+    tests.TestFind.square_origin_S_11()
     #tests.TestFind.square_origin_S_11_then_origin()
     #tests.TestFind.square_origin_S_11_then_10()
     #tests.TestFind.l1p_origin_S_22()

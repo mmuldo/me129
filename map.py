@@ -87,8 +87,8 @@ class Intersection:
         '''
         self.coords = coords
         self.blocked = blocked
-        self.streets = streets
-
+        self.streets = streets            
+       
     #############
     ## utility ##
     #############
@@ -234,6 +234,14 @@ class Intersection:
         int
             N, W, S, or E
         '''
+        print('coords')
+        print(neighbor.coords)
+        print(self.coords)
+        #DYLAN SKIP THIS HERE
+        # if(self.coords == 0):
+        #     #dylan hack
+        #     return (1,0)
+        #MATT HERE
         return diff_to_dir[(
             neighbor.coords[0] - self.coords[0],
             neighbor.coords[1] - self.coords[1]
@@ -673,6 +681,8 @@ def dict_to_map(dictionary: Dict[Any, Any]) -> Map:
     '''converts json serializable dictionary to map object'''
     m = Map([])
     for inter_dict in dictionary['intersections']:
+        print('inter')
+        print(inter_dict['coords'])
         i = Intersection(tuple(inter_dict['coords']))
         i.streets = list(inter_dict['streets'])
         m.intersections.append(i)

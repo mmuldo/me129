@@ -885,16 +885,19 @@ class EEBot:
                 list of neighbors coords: either accessible list or blocked 
                 list
             '''
+            #neighbors.remove(0)
+            #DYLAN REMOVE 0 HERE
             # update neighbors as well
             for neighbor_coords in neighbors:
                 # get neighbor from coords in map (if it's in there)
                 neighbor = self.map.get_intersection(neighbor_coords)
-    
+
                 if neighbor:
                     # this neighbor is already in map, so update streets
                     neighbor.streets[
                         neighbor.direction(self.intersection)
                     ] = accessibility
+                    #neighbor.streets.append(accessibility)
     
                     # remove neighbor from come_back queue if necessary
                     if (
@@ -904,10 +907,18 @@ class EEBot:
                         self.come_back.remove(neighbor)
                 else:
                     # neighbor not yet in map, so initialize it
+                    pass
+                    #DYLAN HERE
+                    #TODO why is neighbor being initialized to 0
                     neighbor = map.Intersection(neighbor_coords)
+                    print('testing here')
+                    print(self.intersection)
+                    print(neighbor.direction(self.intersection))
                     neighbor.streets[
                         neighbor.direction(self.intersection)
                     ] = accessibility
+                    #DYLAN do we jsut append it here?
+                    #neighbor.streets.append(accessibility)
                     self.map.intersections.append(neighbor)
     
                     # we'll need to come back to this later
@@ -937,6 +948,7 @@ class EEBot:
                     self.intersection.streets[d] = street_info[d]
     
             # update neighbors and blocked neighbors as well
+            #
             update_neighbors(PRESENT, self.intersection.neighbors())
             update_neighbors(BLOCKED, self.intersection.blocked_neighbors())
 

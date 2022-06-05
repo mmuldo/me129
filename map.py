@@ -68,7 +68,7 @@ class Intersection:
         self, 
         coords: Tuple[int, int], 
         blocked: bool = False,
-        streets: List[int] = [-1] * 4
+        streets: List[int] = None
     ):
         '''
         Parameters
@@ -88,6 +88,8 @@ class Intersection:
         self.coords = coords
         self.blocked = blocked
         self.streets = streets
+        if not self.streets:
+            self.streets = [-1] * 4
 
     #############
     ## utility ##
@@ -119,7 +121,7 @@ class Intersection:
 
     def copy(self) -> Intersection:
         '''creates a copy of this object'''
-        return Intersection(self.coords, self.blocked, self.streets)
+        return Intersection(self.coords, self.blocked, self.streets.copy())
 
     def visualize(self):
         '''
@@ -297,7 +299,7 @@ class Map:
 
     def __eq__(self, other: Map):
         '''
-        indicates how [map1] == [map2] should be evaluated;
+        indicates how {map1} == {map2} should be evaluated;
         in this case, two maps are equal if and only if their intersection
         lists are subsets of each other.
         '''
@@ -403,10 +405,12 @@ class Map:
         '''
         assert intersection in self.intersections
 
-        return [
+        neighs = [
             self.get_intersection(coords)
             for coords in intersection.neighbors()
         ]
+
+        return [n for n in neighs if not n.blocked]
 
     def blocked_neighbors(
         self, 
@@ -467,10 +471,10 @@ class Map:
         ))
 
         # get list of valid neighbors
-        neighbors = self.neighbors(intersection)
+        neighbor_coords = intersection.neighbors() + intersection.blocked_neighbors()
 
         # return neighbor if it truly is the neighbor of intersection
-        if neighbor in neighbors:
+        if neighbor and neighbor.coords in neighbor_coords:
             return neighbor
 
         # otherwise return none

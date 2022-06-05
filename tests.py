@@ -59,6 +59,11 @@ class TestAssesBlockage:
         TestAssesBlockage.base_test('maps/square.json', (0,0), N)
 
     @staticmethod
+    def square_01_N():
+        '''square map, at 01, facing N'''
+        TestAssesBlockage.base_test('maps/square.json', (0,1), N)
+
+    @staticmethod
     def square_11_W():
         '''square map, at (1,1), facing W'''
         TestAssesBlockage.base_test('maps/square.json', (1,1), W)
@@ -243,7 +248,7 @@ class TestFollowDirections:
         TestFollowDirections.base_test(
             'maps/square.json',
             (0,0),
-            N,
+            S,
             [B, R, B, L]
         )
 
@@ -328,24 +333,14 @@ class TestPartialScan:
     '''tests partial_scan in EEBot class'''
     @staticmethod
     def base_test(
-        map_filename: str,
-        coords: Tuple[int, int],
         heading: int,
         check_right: bool
     ):
         '''base test function'''
         try:
-            # load map from json
-            m = map.load_map(map_filename)
-            # get origin from map
-            i = m.get_intersection(coords)
-            # get destination intersection from map
-            dest_int = m.get_intersection(dest)
             # setup eebot
             control = robot.EEBot(
                 passed_io=pigpio.pi(),
-                botMap=m,
-                intersection=i,
                 heading=heading,
                 come_back=[]
             )
@@ -364,14 +359,24 @@ class TestPartialScan:
             raise ex
 
     @staticmethod
-    def square_origin_S_checkR():
-        '''square map, at origin, facing S, check right'''
-        TestPartialScan.base_test('maps/square.json', (0,0), S, True)
+    def S_checkR():
+        '''facing S, check right'''
+        TestPartialScan.base_test(S, True)
 
     @staticmethod
-    def square_origin_S_checkL():
-        '''square map, at origin, facing S, check left'''
-        TestPartialScan.base_test('maps/square.json', (0,0), S, False)
+    def S_checkL():
+        '''facing S, check left'''
+        TestPartialScan.base_test(S, False)
+
+    @staticmethod
+    def E_checkR():
+        '''facing E, check right'''
+        TestPartialScan.base_test(E, True)
+
+    @staticmethod
+    def E_checkL():
+        '''facing E, check left'''
+        TestPartialScan.base_test(E, False)
 
     @staticmethod
     def l2_21_N_checkR():
@@ -398,6 +403,12 @@ class TestFind:
             cleanup(control)
             print('traceback:')
             raise ex
+
+    @staticmethod
+    def test_find(dest: Tuple[int, int]):
+        '''arbitrary test'''
+        control = robot.EEBot(pigpio.pi())
+        TestFind.base_test(control, dest)
 
     @staticmethod
     def square_origin_S_11():

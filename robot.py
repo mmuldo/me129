@@ -8,6 +8,7 @@ EEBot: a robot capable of exploring and traversing maps using LED and
 '''
 
 # project libraries
+from os import access
 from util import *
 import map
 import ultrasonic
@@ -29,8 +30,8 @@ import pigpio
 #################
 # ultrasonic consts
 # TODO: check if these values are right (in meters)
-INT_BLOCKED_DIST = .5
-STR_BLOCKED_DIST = .2
+INT_BLOCKED_DIST = .4
+STR_BLOCKED_DIST = .18
 
 # colors correspond to the color of the jumper cable connected to each LED
 LED_PINS = {
@@ -42,7 +43,7 @@ LED_PINS = {
 # motor consts
 SPIN_PWM = 0.7
 LIN_SPEED = 0.35
-NEXT_INT_OVERSHOOT = 0.14/.25 # seconds
+NEXT_INT_OVERSHOOT = 0.13/.25 # seconds
 
 
 ###############
@@ -106,7 +107,7 @@ class EEBot:
         self,
         passed_io: pigpio.pi,
         botMap: map.Map = None,
-        intersection: map.Intersection = map.Intersection((0,0)),
+        intersection: map.Intersection = None,
         heading: int = S,
         come_back: List[map.Intersection] = None,
         L: float = 0.103,
@@ -146,6 +147,8 @@ class EEBot:
         self.ultra = ultrasonic.Ultrasonic(passed_io)
 
         # map init
+        if not intersection:
+            self.intersection = map.Intersection((0,0))
         if not botMap:
             self.map = map.Map([self.intersection])
         if not come_back:
@@ -181,16 +184,10 @@ class EEBot:
     ##############
     ## blockage ##
     ##############
-    def assess_blockage(self, moving: bool = False) -> bool:
+    def assess_blockage(self) -> bool:
         '''
         uses ultrasound to scan for forward blockage, and updates map 
         accordingly
-
-        Parameters
-        ----------
-        moving : bool
-            True -> bot is currently line following
-            False -> bot is currently stationary
 
         Returns
         -------
@@ -203,43 +200,37 @@ class EEBot:
 
         # return if the forward neighbor is neither registered as 
         # present or blocked
-        if not self.intersection.streets[self.heading] > ABSENT:
-            return True
+        #if not self.intersection.streets[self.heading] > ABSENT:
+        #    return True
 
         # get intersection that is directly ahead
-        forward_neighbor = self.map.neighbors(
-            self.intersection
-        )[self.heading]
+        forward_neighbor = self.map.get_neighbor(
+            self.intersection,
+            self.heading
+        )
+
+        if not forward_neighbor:
+            return True
 
         # read ultrasound
         self.ultra.trigger()
         dist_to_obstacle = self.ultra.distance[1]
-        print(dist_to_obstacle)
-        print(INT_BLOCKED_DIST)
-        # if moving and we see an obstacle, the best we can do is assume 
-        # intersection is blocked (and not the street)
-        if moving:
-            # here, we use the blocking distance indicative of a street
-            # blockage because we could be like halfway through the
-            # intersection or something when the obstacle pops up
-            forward_neighbor.blocked = dist_to_obstacle < STR_BLOCKED_DIST
-            # and don't do any of the other fancy stuff that distinguishes
-            # an intersection blockage from a street blockage
-            return m == self.map
 
-        # if stationary, we can more accurately distinguish between
-        # a blocked intersection vs a blocked street.
-        # the first step is to try and detect an intersection blockage
-        forward_neighbor.blocked = dist_to_obstacle < INT_BLOCKED_DIST
 
-        # next, try and detect a street blockage, and update the street info
+        # first, try and detect a street blockage, and update the street info
         # for both intersections accordingly
         if dist_to_obstacle < STR_BLOCKED_DIST:
             self.intersection.streets[self.heading] = BLOCKED
-            forward_neighbor.streets[(-self.heading)%4] = BLOCKED
+            forward_neighbor.streets[(self.heading-2)%4] = BLOCKED
+            # return because if the street is blocked, we won't be able
+            #   to see if the intersection is blocked
+            return m == self.map
         else:
             self.intersection.streets[self.heading] = PRESENT
-            forward_neighbor.streets[(-self.heading)%4] = PRESENT
+            forward_neighbor.streets[(self.heading-2)%4] = PRESENT
+
+        # next, try and detect an intersection blockage
+        forward_neighbor.blocked = dist_to_obstacle < INT_BLOCKED_DIST
 
         # if the map changed, return false to indicate we gained new info
         return m == self.map
@@ -367,25 +358,6 @@ class EEBot:
         while True:
             # read LED detectors
             left, middle, right = self.detectors_status()
-            # read the ultrasonic sensors
-            self.ultra.trigger()
-            
-            # check for obstacle directly ahead
-            if self.ultra.distance[1] < STR_BLOCKED_DIST:
-                # this is called to update the map
-                self.assess_blockage(moving=True)
-                if visualize:
-                    self.map.visualize()
-
-                # turn around
-                self.turn(B)
-                self.heading = (self.heading + B)%4
-
-                # go back to previous intersection
-                self.next_intersection()
-
-                # abort process
-                return False
 
             # normal line following
             if not left and middle and not right:
@@ -518,7 +490,6 @@ class EEBot:
         # so the the ratio of a spin in right angle increments to the spin
         # of a single LED across the tape is 90/20 = 4.5, 180/20 = 9,
         # 270/20 = 13.5, and 360/20 = 18
-        print(ratio)
         if ratio < 5.9:
             # should be around 4.5 in this case
             degrees = 90
@@ -730,7 +701,10 @@ class EEBot:
         # check forward direction
         streets[F] = PRESENT if any(self.detectors_status()) else ABSENT
         # scan for forward obstacles
-        self.assess_blockage()
+        if streets[F] == PRESENT:
+            self.ultra.trigger()
+            if self.ultra.distance[1] < STR_BLOCKED_DIST:
+                streets[F] = BLOCKED
 
         # check 90 degree direction
         direction = R if check_right else L
@@ -740,10 +714,13 @@ class EEBot:
         self.heading = (self.heading + direction)%4 if (
             turn_amount == 90
         ) else (self.heading + B)%4
-        # scan for obstacles
-        self.assess_blockage()
         # update street info
         streets[direction] = PRESENT if turn_amount == 90 else ABSENT
+        # scan for obstacles
+        if streets[direction] == PRESENT:
+            self.ultra.trigger()
+            if self.ultra.distance[1] < STR_BLOCKED_DIST:
+                streets[direction] = BLOCKED
 
         # realign streets based on initial heading (so that they're 
         #   [N, W, S, E])
@@ -858,6 +835,49 @@ class EEBot:
             return self.goto(dest_int, visualize)
 
         # helper function
+        def decide_LR() -> bool:
+            '''
+            decides if the bot should partial scan to the left or right
+
+            Returns
+            -------
+            bool
+                True --> check right
+                False --> check left
+            '''
+            # initialize to arbitrarily pick right
+            check_right = True
+
+            # check if one of the directions is already known
+            if self.intersection.streets[(self.heading + R)%4] != UNKNOWN:
+                # if we already know right, check left
+                return False
+            elif self.intersection.streets[(self.heading + L)%4] != UNKNOWN:
+                # if we already know left, check right
+                return True
+
+            # if we don't know anything, decide based on which one is closer
+            # to dest
+            if self.heading == N:
+                # if facing N, left is W and right is E
+                # so, check right if dest is E (or same) and left if dest is W
+                check_right = dest[0] >= self.intersection.coords[0]
+            elif self.heading == W:
+                # if facing W, left is S and right is N
+                # so, check right if dest is N (or same) and left if dest is S
+                check_right = dest[1] >= self.intersection.coords[1]
+            elif self.heading == S:
+                # if facing S, left is E and right is W
+                # so, check right if dest is W (or same) and left if dest is E
+                check_right = dest[0] <= self.intersection.coords[0]
+            elif self.heading == E:
+                # if facing E, left is N and right is S
+                # so, check right if dest is S (or same) and left if dest is N
+                check_right = dest[1] <= self.intersection.coords[1]
+
+            return check_right
+
+        # helper function
         def update_neighbors(
             accessibility: int, 
             neighbors: List[Tuple[int,int]]
@@ -874,8 +894,10 @@ class EEBot:
                 list of neighbors coords: either accessible list or blocked 
                 list
             '''
+
             # update neighbors as well
             for neighbor_coords in neighbors:
+
                 # get neighbor from coords in map (if it's in there)
                 neighbor = self.map.get_intersection(neighbor_coords)
     
@@ -898,14 +920,15 @@ class EEBot:
                         neighbor.direction(self.intersection)
                     ] = accessibility
                     self.map.intersections.append(neighbor)
-    
+
                     # we'll need to come back to this later
                     self.come_back.append(neighbor)
 
-        while self.intersection != dest or self.come_back:
+        while self.come_back:
             # next intersection to explore is at the top of the 
             # come_back queue
             next = self.come_back[0]
+
             while not self.goto(next, visualize):
                 # if we failed to get to next...
                 # rotate queue (putting the thing we were trying to goto
@@ -913,18 +936,19 @@ class EEBot:
                 self.come_back = self.come_back[1:] + self.come_back[:1]
                 next = self.come_back[0]
 
-            # if the street to the right is unknown, check right in scan
-            # otherwise, check left in scan
-            check_right = self.intersection.streets[
-                (self.heading + R)%4
-            ] == UNKNOWN
+            if self.intersection == dest:
+                # if we've reached the destination, we're done!
+                return True
+
+            # scan the intersection
+            check_right = decide_LR()
             street_info = self.partial_scan(check_right)
-    
+
             # update streets with new info
             for d in range(len(self.intersection.streets)):
                 if street_info[d] != UNKNOWN:
                     self.intersection.streets[d] = street_info[d]
-    
+
             # update neighbors and blocked neighbors as well
             update_neighbors(PRESENT, self.intersection.neighbors())
             update_neighbors(BLOCKED, self.intersection.blocked_neighbors())

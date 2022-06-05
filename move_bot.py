@@ -48,7 +48,8 @@ if __name__ == "__main__":
     #####################
     ## assess_blockage ##
     #####################
-    tests.TestAssesBlockage.square_origin_N()
+    #tests.TestAssesBlockage.square_origin_N()
+    #tests.TestAssesBlockage.square_01_N()
     #tests.TestAssesBlockage.square_11_W()
     #tests.TestAssesBlockage.l2_21_E()
     #tests.TestAssesBlockage.l2_32_S()
@@ -87,8 +88,10 @@ if __name__ == "__main__":
     ##################
     ## partial_scan ##
     ##################
-    #tests.TestPartialScan.square_origin_S_checkR()
-    #tests.TestPartialScan.square_origin_S_checkL()
+    #tests.TestPartialScan.S_checkR()
+    #tests.TestPartialScan.S_checkL()
+    #tests.TestPartialScan.E_checkR()
+    #tests.TestPartialScan.E_checkL()
     #tests.TestPartialScan.l2_21_N_checkR()
     #tests.TestPartialScan.l2_21_N_checkL()
 
@@ -96,9 +99,11 @@ if __name__ == "__main__":
     ## find ##
     ##########
     #tests.TestFind.square_origin_S_11()
+    tests.TestFind.test_find((1,2))
     #tests.TestFind.square_origin_S_11_then_origin()
     #tests.TestFind.square_origin_S_11_then_10()
     #tests.TestFind.l1p_origin_S_22()
     #tests.TestFind.l1p_origin_S_22_then_20()
     #tests.TestFind.l1p_origin_S_22_then_20_then_01()
     #tests.TestFind.l1p_origin_S_22_then_20_then_01_then_30()
+    time.sleep(5)

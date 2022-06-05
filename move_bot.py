@@ -99,11 +99,12 @@ if __name__ == "__main__":
     ## find ##
     ##########
     #tests.TestFind.square_origin_S_11()
-    tests.TestFind.test_find((1,2))
+    #tests.TestFind.test_find((1,2))
     #tests.TestFind.square_origin_S_11_then_origin()
     #tests.TestFind.square_origin_S_11_then_10()
     #tests.TestFind.l1p_origin_S_22()
     #tests.TestFind.l1p_origin_S_22_then_20()
     #tests.TestFind.l1p_origin_S_22_then_20_then_01()
     #tests.TestFind.l1p_origin_S_22_then_20_then_01_then_30()
-    time.sleep(5)
+    #time.sleep(5)
+    pass
